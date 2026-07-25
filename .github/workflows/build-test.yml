@@ -48,7 +48,6 @@ jobs:
         run: |
           docker run --rm \
             -v "$PWD/${{ matrix.package }}:/pkg" \
-            -v "$PWD/.github/build-cache:/build" \
             archlinux:latest \
             bash -c "
               set -e
@@ -58,7 +57,8 @@ jobs:
 
               # Create non-root user for makepkg
               useradd -m builder
-              chown -R builder:builder /pkg /build
+              echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+              chown -R builder:builder /pkg
 
               cd /pkg
 
