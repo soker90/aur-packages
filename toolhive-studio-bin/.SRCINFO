@@ -1,7 +1,7 @@
 pkgbase = toolhive-studio-bin
 	pkgdesc = Desktop app to install, manage and run MCP servers and connect them to AI agents and clients (Electron, repackaged from upstream .deb)
 	pkgver = 0.37.0
-	pkgrel = 1
+	pkgrel = 2
 	url = https://github.com/stacklok/toolhive-studio
 	arch = x86_64
 	license = Apache-2.0
