@@ -1,0 +1,78 @@
+name: Update AUR Package
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'toolhive-studio-bin/PKGBUILD'
+      - 'toolhive-studio-bin/.SRCINFO'
+  workflow_dispatch:
+
+jobs:
+  update-aur:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo pacman -Syu --noconfirm --needed base-devel git openssh
+
+      - name: Setup SSH for AUR
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config << EOF
+          Host aur.archlinux.org
+            IdentityFile ~/.ssh/aur
+            User aur
+          EOF
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "Eduardo Parra"
+          git config --global user.email "eduparra90@gmail.com"
+
+      - name: Generate .SRCINFO
+        run: |
+          cd toolhive-studio-bin
+          # Create a temporary directory for makepkg
+          TMPDIR=$(mktemp -d)
+          # Generate .SRCINFO without building
+          docker run --rm -v "$PWD:/pkg" -v "$TMPDIR:/tmp" archlinux:latest bash -c "
+            pacman -Syu --noconfirm --needed base-devel
+            cd /pkg
+            sudo -u nobody makepkg --printsrcinfo > .SRCINFO
+          "
+          rm -rf "$TMPDIR"
+
+      - name: Clone AUR repository
+        run: |
+          git clone ssh://aur@aur.archlinux.org/toolhive-studio-bin.git aur-repo
+
+      - name: Update AUR package
+        run: |
+          cp toolhive-studio-bin/PKGBUILD aur-repo/
+          cp toolhive-studio-bin/.SRCINFO aur-repo/
+          cd aur-repo
+
+          # Check if there are changes
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          # Get version from PKGBUILD
+          VERSION=$(grep "^pkgver=" PKGBUILD | cut -d'=' -f2)
+
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update to version ${VERSION}"
+          git push

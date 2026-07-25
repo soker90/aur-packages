@@ -1,0 +1,34 @@
+name: Validate PKGBUILD
+
+on:
+  pull_request:
+    paths:
+      - 'toolhive-studio-bin/PKGBUILD'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate PKGBUILD
+        run: |
+          cd toolhive-studio-bin
+          docker run --rm -v "$PWD:/pkg" archlinux:latest bash -c "
+            pacman -Syu --noconfirm --needed base-devel namcap
+            cd /pkg
+            namcap PKGBUILD
+            sudo -u nobody makepkg --printsrcinfo > .SRCINFO.test
+            echo 'PKGBUILD validation successful'
+          "
+
+      - name: Check checksums
+        run: |
+          cd toolhive-studio-bin
+          docker run --rm -v "$PWD:/pkg" archlinux:latest bash -c "
+            pacman -Syu --noconfirm --needed base-devel
+            cd /pkg
+            sudo -u nobody makepkg -g
+          "

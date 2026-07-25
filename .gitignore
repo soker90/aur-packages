@@ -1,0 +1,23 @@
+# Build artifacts
+*.pkg.tar.*
+*.src.tar.gz
+pkg/
+src/
+
+# Temp files
+*.tmp
+*.log
+
+# AUR repo clone
+aur-repo/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
