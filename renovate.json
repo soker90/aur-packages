@@ -19,6 +19,16 @@
       "depNameTemplate": "stacklok/toolhive-studio",
       "datasourceTemplate": "github-releases",
       "versioningTemplate": "semver"
+    },
+    {
+      "fileMatch": ["^github-copilot-app-bin/PKGBUILD$"],
+      "matchStrings": [
+        "pkgver=(?<currentValue>.*?)\\n",
+        "sha256sums_x86_64=\\('(?<currentDigest>[a-f0-9]{64})'\\)"
+      ],
+      "depNameTemplate": "github/app",
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver"
     }
   ],
   "automerge": false,

@@ -4,18 +4,22 @@ on:
   pull_request:
     paths:
       - 'toolhive-studio-bin/PKGBUILD'
+      - 'github-copilot-app-bin/PKGBUILD'
   workflow_dispatch:
 
 jobs:
   validate:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [toolhive-studio-bin, github-copilot-app-bin]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Validate PKGBUILD
         run: |
-          cd toolhive-studio-bin
+          cd ${{ matrix.package }}
           docker run --rm -v "$PWD:/pkg" archlinux:latest bash -c "
             pacman -Syu --noconfirm --needed base-devel namcap
             cd /pkg
@@ -26,7 +30,7 @@ jobs:
 
       - name: Check checksums
         run: |
-          cd toolhive-studio-bin
+          cd ${{ matrix.package }}
           docker run --rm -v "$PWD:/pkg" archlinux:latest bash -c "
             pacman -Syu --noconfirm --needed base-devel
             cd /pkg

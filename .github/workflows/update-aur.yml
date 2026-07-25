@@ -7,22 +7,38 @@ on:
     paths:
       - 'toolhive-studio-bin/PKGBUILD'
       - 'toolhive-studio-bin/.SRCINFO'
+      - 'github-copilot-app-bin/PKGBUILD'
+      - 'github-copilot-app-bin/.SRCINFO'
   workflow_dispatch:
 
 jobs:
   update-aur:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [toolhive-studio-bin, github-copilot-app-bin]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Check if package was modified
+        id: check
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep -q "^${{ matrix.package }}/"; then
+            echo "modified=true" >> $GITHUB_OUTPUT
+          else
+            echo "modified=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Install dependencies
+        if: steps.check.outputs.modified == 'true'
         run: |
           sudo pacman -Syu --noconfirm --needed base-devel git openssh
 
       - name: Setup SSH for AUR
+        if: steps.check.outputs.modified == 'true'
         env:
           AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
         run: |
@@ -37,13 +53,15 @@ jobs:
           EOF
 
       - name: Configure Git
+        if: steps.check.outputs.modified == 'true'
         run: |
           git config --global user.name "Eduardo Parra"
           git config --global user.email "eduparra90@gmail.com"
 
       - name: Generate .SRCINFO
+        if: steps.check.outputs.modified == 'true'
         run: |
-          cd toolhive-studio-bin
+          cd ${{ matrix.package }}
           # Create a temporary directory for makepkg
           TMPDIR=$(mktemp -d)
           # Generate .SRCINFO without building
@@ -55,13 +73,15 @@ jobs:
           rm -rf "$TMPDIR"
 
       - name: Clone AUR repository
+        if: steps.check.outputs.modified == 'true'
         run: |
-          git clone ssh://aur@aur.archlinux.org/toolhive-studio-bin.git aur-repo
+          git clone ssh://aur@aur.archlinux.org/${{ matrix.package }}.git aur-repo
 
       - name: Update AUR package
+        if: steps.check.outputs.modified == 'true'
         run: |
-          cp toolhive-studio-bin/PKGBUILD aur-repo/
-          cp toolhive-studio-bin/.SRCINFO aur-repo/
+          cp ${{ matrix.package }}/PKGBUILD aur-repo/
+          cp ${{ matrix.package }}/.SRCINFO aur-repo/
           cd aur-repo
 
           # Check if there are changes

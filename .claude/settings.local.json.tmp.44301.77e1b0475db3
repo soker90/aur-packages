@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "Bash(git add *)",
+      "Bash(git reset *)",
+      "Bash(rm -f .claude/settings.local.json.tmp.44301.9c0ed9f5a944)",
+      "Bash(git commit *)",
+      "Read(//hdd/Proyectos/**)",
+      "Bash(mv paquetes-archinux *)"
+    ]
+  }
+}
