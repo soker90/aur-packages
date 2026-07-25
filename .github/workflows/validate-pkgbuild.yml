@@ -5,6 +5,7 @@ on:
     paths:
       - 'toolhive-studio-bin/PKGBUILD'
       - 'github-copilot-app-bin/PKGBUILD'
+      - 'vega-cli-bin/PKGBUILD'
   workflow_dispatch:
 
 jobs:
@@ -12,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [toolhive-studio-bin, github-copilot-app-bin]
+        package: [toolhive-studio-bin, github-copilot-app-bin, vega-cli-bin]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -9,6 +9,8 @@ on:
       - 'toolhive-studio-bin/.SRCINFO'
       - 'github-copilot-app-bin/PKGBUILD'
       - 'github-copilot-app-bin/.SRCINFO'
+      - 'vega-cli-bin/PKGBUILD'
+      - 'vega-cli-bin/.SRCINFO'
   workflow_dispatch:
 
 jobs:
@@ -16,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [toolhive-studio-bin, github-copilot-app-bin]
+        package: [toolhive-studio-bin, github-copilot-app-bin, vega-cli-bin]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
