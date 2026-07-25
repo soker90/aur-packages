@@ -46,22 +46,28 @@ Para estos casos, la actualización se hace de la siguiente manera:
 
 ## 🛠️ Mantenimiento Manual
 
-Si necesitas desplegar una corrección rápida en cualquiera de los paquetes, basta con hacer lo siguiente en tu máquina local:
+Si necesitas actualizar un paquete manualmente (como `vega-cli-bin`) o hacer una corrección rápida en cualquiera de los paquetes, sigue estos pasos:
 
 ```bash
 # Cambiar al directorio del paquete
-cd github-copilot-app-bin/
+cd vega-cli-bin/
 
-# Editar PKGBUILD...
+# 1. Editar PKGBUILD con la nueva versión
+vim PKGBUILD  # Actualizar pkgver, pkgrel, y _sha256
 
-# Generar archivo .SRCINFO con makepkg
-# (Asegúrate de estar en tu sistema Arch o tener instalado base-devel)
+# 2. Generar archivo .SRCINFO actualizado
+# (Requiere makepkg instalado - paquete base-devel en Arch Linux)
 makepkg --printsrcinfo > .SRCINFO
 
-# Subir al repositorio
+# 3. Subir los cambios al repositorio
 git add PKGBUILD .SRCINFO
-git commit -m "Fix: manual correction for github-copilot-app-bin"
+git commit -m "Update vega-cli-bin to version X.Y.Z"
 git push origin master
 ```
 
-El pipeline de GitHub Actions se encargará de validar la compilación y propagar los cambios a AUR automáticamente.
+**Importante**: Siempre debes actualizar **tanto** el `PKGBUILD` **como** el `.SRCINFO` en los paquetes manuales. El `.SRCINFO` contiene metadatos esenciales que AUR utiliza para indexar y mostrar información del paquete.
+
+El pipeline de GitHub Actions se encargará de:
+- Validar la compilación en un contenedor Arch Linux limpio
+- Verificar checksums con `makepkg -g`
+- Propagar los cambios automáticamente a AUR usando el bot SSH configurado
