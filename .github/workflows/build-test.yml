@@ -1,0 +1,93 @@
+name: Build and Test Packages
+
+on:
+  pull_request:
+    paths:
+      - 'toolhive-studio-bin/PKGBUILD'
+      - 'github-copilot-app-bin/PKGBUILD'
+      - 'vega-cli-bin/PKGBUILD'
+  push:
+    branches:
+      - master
+    paths:
+      - 'toolhive-studio-bin/PKGBUILD'
+      - 'github-copilot-app-bin/PKGBUILD'
+      - 'vega-cli-bin/PKGBUILD'
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [toolhive-studio-bin, github-copilot-app-bin, vega-cli-bin]
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check if package was modified
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "modified=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "modified=true" >> $GITHUB_OUTPUT
+          else
+            if git diff --name-only HEAD~1 HEAD | grep -q "^${{ matrix.package }}/"; then
+              echo "modified=true" >> $GITHUB_OUTPUT
+            else
+              echo "modified=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Build package in Arch Linux container
+        if: steps.check.outputs.modified == 'true'
+        run: |
+          docker run --rm \
+            -v "$PWD/${{ matrix.package }}:/pkg" \
+            -v "$PWD/.github/build-cache:/build" \
+            archlinux:latest \
+            bash -c "
+              set -e
+
+              # Update system and install dependencies
+              pacman -Syu --noconfirm --needed base-devel namcap
+
+              # Create non-root user for makepkg
+              useradd -m builder
+              chown -R builder:builder /pkg /build
+
+              cd /pkg
+
+              # Validate PKGBUILD
+              echo '==> Validating PKGBUILD with namcap'
+              namcap PKGBUILD
+
+              # Build package
+              echo '==> Building package'
+              sudo -u builder makepkg -sf --noconfirm
+
+              # Check built package
+              echo '==> Validating built package'
+              for pkg in *.pkg.tar.zst; do
+                if [ -f \"\$pkg\" ]; then
+                  namcap \"\$pkg\"
+                  echo \"✓ Package built successfully: \$pkg\"
+                  ls -lh \"\$pkg\"
+                fi
+              done
+
+              # Test package installation
+              echo '==> Testing package installation'
+              pacman -U --noconfirm *.pkg.tar.zst
+
+              echo '==> Package installed successfully'
+            "
+
+      - name: Summary
+        if: steps.check.outputs.modified == 'true'
+        run: |
+          echo "✅ Package ${{ matrix.package }} built and tested successfully"
