@@ -55,20 +55,6 @@ jobs:
           git config --global user.name "Eduardo Parra"
           git config --global user.email "eduparra90@gmail.com"
 
-      - name: Generate .SRCINFO
-        if: steps.check.outputs.modified == 'true'
-        run: |
-          cd ${{ matrix.package }}
-          # Create a temporary directory for makepkg
-          TMPDIR=$(mktemp -d)
-          # Generate .SRCINFO without building
-          docker run --rm -v "$PWD:/pkg" -v "$TMPDIR:/tmp" archlinux:latest bash -c "
-            pacman -Syu --noconfirm --needed base-devel
-            cd /pkg
-            sudo -u nobody makepkg --printsrcinfo > .SRCINFO
-          "
-          rm -rf "$TMPDIR"
-
       - name: Clone AUR repository
         if: steps.check.outputs.modified == 'true'
         run: |
