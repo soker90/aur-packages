@@ -5,37 +5,56 @@ on:
     branches:
       - master
     paths:
-      - 'toolhive-studio-bin/PKGBUILD'
-      - 'toolhive-studio-bin/.SRCINFO'
-      - 'github-copilot-app-bin/PKGBUILD'
-      - 'github-copilot-app-bin/.SRCINFO'
-      - 'vega-cli-bin/PKGBUILD'
-      - 'vega-cli-bin/.SRCINFO'
+      - '**/PKGBUILD'
+      - '**/.SRCINFO'
   workflow_dispatch:
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.set-matrix.outputs.packages }}
+      any_modified: ${{ steps.set-matrix.outputs.any_modified }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect modified packages
+        id: set-matrix
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Manual trigger updates all packages if needed
+            DIRS="toolhive-studio-bin github-copilot-app-bin vega-cli-bin"
+          else
+            # On push, identify which pkg folders were modified
+            DIRS=$(git diff --name-only HEAD~1 HEAD | grep -E "PKGBUILD|\.SRCINFO" | xargs -I {} dirname {} | sort -u | xargs)
+          fi
+
+          if [ -z "$DIRS" ]; then
+            echo "packages=[]" >> $GITHUB_OUTPUT
+            echo "any_modified=false" >> $GITHUB_OUTPUT
+          else
+            JSON_ARRAY=$(echo "$DIRS" | tr ' ' '\n' | jq -R . | jq -s -c .)
+            echo "packages=${JSON_ARRAY}" >> $GITHUB_OUTPUT
+            echo "any_modified=true" >> $GITHUB_OUTPUT
+          fi
+
   update-aur:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any_modified == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [toolhive-studio-bin, github-copilot-app-bin, vega-cli-bin]
+        package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Check if package was modified
-        id: check
-        run: |
-          if git diff --name-only HEAD~1 HEAD | grep -q "^${{ matrix.package }}/"; then
-            echo "modified=true" >> $GITHUB_OUTPUT
-          else
-            echo "modified=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Setup SSH for AUR
-        if: steps.check.outputs.modified == 'true'
         env:
           AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
         run: |
@@ -50,18 +69,15 @@ jobs:
           EOF
 
       - name: Configure Git
-        if: steps.check.outputs.modified == 'true'
         run: |
           git config --global user.name "Eduardo Parra"
           git config --global user.email "eduparra90@gmail.com"
 
       - name: Clone AUR repository
-        if: steps.check.outputs.modified == 'true'
         run: |
           git clone ssh://aur@aur.archlinux.org/${{ matrix.package }}.git aur-repo
 
       - name: Update AUR package
-        if: steps.check.outputs.modified == 'true'
         run: |
           cp ${{ matrix.package }}/PKGBUILD aur-repo/
           cp ${{ matrix.package }}/.SRCINFO aur-repo/

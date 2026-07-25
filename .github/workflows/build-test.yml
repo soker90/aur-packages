@@ -3,48 +3,72 @@ name: Build and Test Packages
 on:
   pull_request:
     paths:
-      - 'toolhive-studio-bin/PKGBUILD'
-      - 'github-copilot-app-bin/PKGBUILD'
-      - 'vega-cli-bin/PKGBUILD'
+      - '**/PKGBUILD'
   push:
     branches:
       - master
     paths:
-      - 'toolhive-studio-bin/PKGBUILD'
-      - 'github-copilot-app-bin/PKGBUILD'
-      - 'vega-cli-bin/PKGBUILD'
+      - '**/PKGBUILD'
   workflow_dispatch:
 
 jobs:
-  build-test:
+  detect-changes:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        package: [toolhive-studio-bin, github-copilot-app-bin, vega-cli-bin]
-      fail-fast: false
+    outputs:
+      packages: ${{ steps.set-matrix.outputs.packages }}
+      any_modified: ${{ steps.set-matrix.outputs.any_modified }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 2
 
-      - name: Check if package was modified
-        id: check
+      - name: Detect modified packages
+        id: set-matrix
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "modified=true" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "modified=true" >> $GITHUB_OUTPUT
+          # Determine the comparison base
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="HEAD~1"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BASE="HEAD"
           else
-            if git diff --name-only HEAD~1 HEAD | grep -q "^${{ matrix.package }}/"; then
-              echo "modified=true" >> $GITHUB_OUTPUT
-            else
-              echo "modified=false" >> $GITHUB_OUTPUT
-            fi
+            BASE="HEAD~1"
           fi
 
+          # Get list of directories that contain modified PKGBUILDs
+          # We check the commits between the base and HEAD
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # For manual run, build all packages
+            DIRS="toolhive-studio-bin github-copilot-app-bin vega-cli-bin"
+          else
+            DIRS=$(git diff --name-only $BASE HEAD | grep "PKGBUILD" | xargs -I {} dirname {} | sort -u | xargs)
+          fi
+
+          if [ -z "$DIRS" ]; then
+            echo "::log::No package modifications detected."
+            echo "packages=[]" >> $GITHUB_OUTPUT
+            echo "any_modified=false" >> $GITHUB_OUTPUT
+          else
+            echo "::log::Modified packages: $DIRS"
+            # Format as JSON array: ["pkg1", "pkg2"]
+            JSON_ARRAY=$(echo "$DIRS" | tr ' ' '\n' | jq -R . | jq -s -c .)
+            echo "packages=${JSON_ARRAY}" >> $GITHUB_OUTPUT
+            echo "any_modified=true" >> $GITHUB_OUTPUT
+          fi
+
+  build-test:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any_modified == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Build package in Arch Linux container
-        if: steps.check.outputs.modified == 'true'
         run: |
           docker run --rm \
             -v "$PWD/${{ matrix.package }}:/pkg" \
@@ -86,8 +110,5 @@ jobs:
 
               echo '==> Package installed successfully'
             "
-
-      - name: Summary
-        if: steps.check.outputs.modified == 'true'
-        run: |
-          echo "✅ Package ${{ matrix.package }} built and tested successfully"
+          # Restore local permissions of files modified by docker
+          sudo chown -R $(id -u):$(id -g) .
