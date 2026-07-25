@@ -3,17 +3,46 @@ name: Validate PKGBUILD
 on:
   pull_request:
     paths:
-      - 'toolhive-studio-bin/PKGBUILD'
-      - 'github-copilot-app-bin/PKGBUILD'
-      - 'vega-cli-bin/PKGBUILD'
+      - '**/PKGBUILD'
   workflow_dispatch:
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.set-matrix.outputs.packages }}
+      any_modified: ${{ steps.set-matrix.outputs.any_modified }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect modified packages
+        id: set-matrix
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            DIRS="toolhive-studio-bin github-copilot-app-bin vega-cli-bin"
+          else
+            DIRS=$(git diff --name-only HEAD~1 HEAD | grep "PKGBUILD" | xargs -I {} dirname {} | sort -u | xargs)
+          fi
+
+          if [ -z "$DIRS" ]; then
+            echo "packages=[]" >> $GITHUB_OUTPUT
+            echo "any_modified=false" >> $GITHUB_OUTPUT
+          else
+            JSON_ARRAY=$(echo "$DIRS" | tr ' ' '\n' | jq -R . | jq -s -c .)
+            echo "packages=${JSON_ARRAY}" >> $GITHUB_OUTPUT
+            echo "any_modified=true" >> $GITHUB_OUTPUT
+          fi
+
   validate:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any_modified == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [toolhive-studio-bin, github-copilot-app-bin, vega-cli-bin]
+        package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,6 +57,7 @@ jobs:
             sudo -u nobody makepkg --printsrcinfo > .SRCINFO.test
             echo 'PKGBUILD validation successful'
           "
+          sudo chown -R $(id -u):$(id -g) .
 
       - name: Check checksums
         run: |
@@ -37,3 +67,4 @@ jobs:
             cd /pkg
             sudo -u nobody makepkg -g
           "
+          sudo chown -R $(id -u):$(id -g) .

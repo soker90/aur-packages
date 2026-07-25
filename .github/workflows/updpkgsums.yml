@@ -10,55 +10,74 @@ permissions:
   contents: write
 
 jobs:
-  updpkgsums:
+  detect-changes:
     runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.set-matrix.outputs.packages }}
+      any_modified: ${{ steps.set-matrix.outputs.any_modified }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # Checkout the pull request branch instead of the merge commit
+          fetch-depth: 2
+
+      - name: Detect modified packages
+        id: set-matrix
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            DIRS="toolhive-studio-bin github-copilot-app-bin"
+          else
+            DIRS=$(git diff --name-only HEAD~1 HEAD | grep "PKGBUILD" | xargs -I {} dirname {} | sort -u | xargs)
+          fi
+
+          if [ -z "$DIRS" ]; then
+            echo "packages=[]" >> $GITHUB_OUTPUT
+            echo "any_modified=false" >> $GITHUB_OUTPUT
+          else
+            JSON_ARRAY=$(echo "$DIRS" | tr ' ' '\n' | jq -R . | jq -s -c .)
+            echo "packages=${JSON_ARRAY}" >> $GITHUB_OUTPUT
+            echo "any_modified=true" >> $GITHUB_OUTPUT
+          fi
+
+  updpkgsums:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any_modified == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 2
 
       - name: Update checksums and .SRCINFO
         run: |
-          # Get list of modified directories in this PR
-          # On workflow_dispatch or if git diff fails, run on all directories
-          MODIFIED_DIRS=""
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            MODIFIED_DIRS=$(git diff --name-only HEAD~1 HEAD | grep "PKGBUILD" | xargs -I {} dirname {} | sort -u)
-          fi
+          # Run updating script using docker archlinux
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            archlinux:latest \
+            bash -c "
+              set -e
+              pacman -Syu --noconfirm --needed base-devel pacman-contrib git sudo
 
-          if [ -z "$MODIFIED_DIRS" ]; then
-            MODIFIED_DIRS="toolhive-studio-bin github-copilot-app-bin"
-          fi
+              # Setup builder user with sudo
+              useradd -m builder
+              echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+              chown -R builder:builder /workspace
 
-          for dir in $MODIFIED_DIRS; do
-            if [ -d "$dir" ] && [ -f "$dir/PKGBUILD" ]; then
-              echo "==> Processing: $dir"
-
-              # Run updating script using docker archlinux
-              docker run --rm \
-                -v "$PWD:/workspace" \
-                archlinux:latest \
-                bash -c "
-                  set -e
-                  pacman -Syu --noconfirm --needed base-devel pacman-contrib git sudo
-
-                  # Setup builder user with sudo
-                  useradd -m builder
-                  echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
-                  chown -R builder:builder /workspace
-
-                  # Execute updater script as builder
-                  cd /workspace
-                  sudo -u builder bash .github/scripts/aur-refresh-metadata.sh '$dir'
-                "
-            fi
-          done
+              # Execute updater script as builder
+              cd /workspace
+              sudo -u builder bash .github/scripts/aur-refresh-metadata.sh '${{ matrix.package }}'
+            "
+          # Restore repository file permissions so the checkout runner can write to .git
+          sudo chown -R $(id -u):$(id -g) .
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Update checksums and .SRCINFO for modified packages"
-          file_pattern: '**/PKGBUILD **/.SRCINFO'
+          commit_message: "Update checksums and .SRCINFO for ${{ matrix.package }}"
+          file_pattern: '${{ matrix.package }}/PKGBUILD ${{ matrix.package }}/.SRCINFO'
