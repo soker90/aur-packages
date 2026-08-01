@@ -2,7 +2,7 @@
 pkgname=toolhive-studio-bin
 _pkgname=toolhive-studio
 pkgver=0.39.2
-pkgrel=2
+pkgrel=1
 pkgdesc="Desktop app to install, manage and run MCP servers and connect them to AI agents and clients (Electron, repackaged from upstream .deb)"
 arch=('x86_64')
 url="https://github.com/stacklok/toolhive-studio"
