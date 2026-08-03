@@ -31,7 +31,7 @@ provides=('toolhive-studio' 'toolhive')
 conflicts=('toolhive-studio' 'toolhive')
 options=(!strip !debug emptydirs)
 source=("$pkgname-$pkgver.deb::$url/releases/download/v$pkgver/toolhive_${pkgver}_amd64.deb")
-sha256sums=('cdc9d6a4556c6d7815dea34e60cd5020accbf9bf9ffc246d1d8c4bc5f6e0695b')
+sha256sums=('81a27118a573bc3976c649fa39b30246f73a216de7190bccec286330c037bfe1')
 
 package() {
     # Extract the .deb (ar archive) and its data payload (zstd-compressed tar)
