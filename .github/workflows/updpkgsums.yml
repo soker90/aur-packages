@@ -77,7 +77,7 @@ jobs:
           sudo chown -R $(id -u):$(id -g) .
 
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "Update checksums and .SRCINFO for ${{ matrix.package }}"
           file_pattern: '${{ matrix.package }}/PKGBUILD ${{ matrix.package }}/.SRCINFO'
