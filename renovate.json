@@ -27,7 +27,9 @@
       "versioningTemplate": "semver"
     }
   ],
-  "automerge": false,
+  "automerge": true,
+  "automergeType": "pr",
+  "platformAutomerge": false,
   "prConcurrentLimit": 1,
   "prHourlyLimit": 2
 }
