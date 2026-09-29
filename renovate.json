@@ -13,7 +13,7 @@
     {
       "customType": "regex",
       "managerFilePatterns": ["/^toolhive-studio-bin/PKGBUILD$/"],
-      "matchStrings": ["pkgver=(?<currentValue>.*?)\\n", "sha256sums=\\('(?<currentDigest>[a-f0-9]{64})'\\)"],
+      "matchStrings": ["pkgver=(?<currentValue>.*?)\\n"],
       "depNameTemplate": "stacklok/toolhive-studio",
       "datasourceTemplate": "github-releases",
       "versioningTemplate": "semver"
@@ -21,12 +21,22 @@
     {
       "customType": "regex",
       "managerFilePatterns": ["/^github-copilot-app-bin/PKGBUILD$/"],
-      "matchStrings": ["pkgver=(?<currentValue>.*?)\\n", "sha256sums_x86_64=\\('(?<currentDigest>[a-f0-9]{64})'\\)"],
+      "matchStrings": ["pkgver=(?<currentValue>.*?)\\n"],
       "depNameTemplate": "github/app",
       "datasourceTemplate": "github-releases",
       "versioningTemplate": "semver"
     }
   ],
+  "postUpgradeTasks": {
+    "commands": [
+      "node scripts/renovate-update-aur-checksum.mjs {{{packageFile}}}"
+    ],
+    "fileFilters": [
+      "toolhive-studio-bin/PKGBUILD",
+      "github-copilot-app-bin/PKGBUILD"
+    ],
+    "executionMode": "update"
+  },
   "automerge": true,
   "automergeType": "pr",
   "platformAutomerge": false,
