@@ -1,12 +1,21 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ],
+  "extends": ["config:recommended"],
   "packageRules": [
     {
       "matchManagers": ["custom.regex"],
       "enabled": true
+    },
+    {
+      "matchPackageNames": ["stacklok/toolhive-studio", "github/app"],
+      "postUpgradeTasks": {
+        "commands": ["node scripts/renovate-update-aur-checksum.mjs {{{packageFile}}}"],
+        "fileFilters": [
+          "toolhive-studio-bin/PKGBUILD",
+          "github-copilot-app-bin/PKGBUILD"
+        ],
+        "executionMode": "update"
+      }
     }
   ],
   "customManagers": [
@@ -27,16 +36,6 @@
       "versioningTemplate": "semver"
     }
   ],
-  "postUpgradeTasks": {
-    "commands": [
-      "node scripts/renovate-update-aur-checksum.mjs {{{packageFile}}}"
-    ],
-    "fileFilters": [
-      "toolhive-studio-bin/PKGBUILD",
-      "github-copilot-app-bin/PKGBUILD"
-    ],
-    "executionMode": "update"
-  },
   "automerge": true,
   "automergeType": "pr",
   "platformAutomerge": false,
