@@ -81,3 +81,4 @@ jobs:
         with:
           commit_message: "Update checksums and .SRCINFO for ${{ matrix.package }}"
           file_pattern: '${{ matrix.package }}/PKGBUILD ${{ matrix.package }}/.SRCINFO'
+          token: ${{ secrets.RENOVATE_TOKEN }}
