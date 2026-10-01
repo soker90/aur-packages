@@ -78,23 +78,14 @@ jobs:
           GH_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
           VERSION: ${{ steps.detect.outputs.version }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
           git add vega-cli-bin/PKGBUILD vega-cli-bin/.SRCINFO
           git diff --cached --quiet && exit 0
 
           git commit -m "chore(vega): update CLI to $VERSION"
 
-          branch="automation/vega-cli-update"
-          git push --force origin "HEAD:$branch"
+          .github/scripts/create-automation-pr.sh \
+            "automation/vega-cli-update" \
+            "chore(vega): update CLI to $VERSION" \
+            "Automated update detected from the official Vega installer.
 
-          pr=$(gh pr list             --head "$branch"             --base master             --state open             --json number             --jq '.[0].number')
-
-          if [[ -z "$pr" ]]; then
-            pr=$(gh pr create               --base master               --head "$branch"               --title "chore(vega): update CLI to $VERSION"               --body "Automated update detected from the official Vega installer.\n\nThe common package validation workflow must pass before merge.")
-          else
-            gh pr edit "$pr" --title "chore(vega): update CLI to $VERSION"
-          fi
-
-          gh pr merge "$pr" --auto --squash
+The common package validation workflow must pass before merge."
