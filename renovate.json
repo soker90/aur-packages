@@ -9,31 +9,15 @@
     {
       "matchPackageNames": ["stacklok/toolhive-studio", "github/app"],
       "postUpgradeTasks": {
-        "commands": ["node scripts/renovate-update-aur-checksum.mjs {{{packageFile}}}"],
+        "commands": ["bash scripts/renovate-update-aur-metadata.sh {{{packageFile}}}"],
         "fileFilters": [
           "toolhive-studio-bin/PKGBUILD",
-          "github-copilot-app-bin/PKGBUILD"
+          "toolhive-studio-bin/.SRCINFO",
+          "github-copilot-app-bin/PKGBUILD",
+          "github-copilot-app-bin/.SRCINFO"
         ],
         "executionMode": "update"
       }
-    }
-  ],
-  "customManagers": [
-    {
-      "customType": "regex",
-      "managerFilePatterns": ["/^toolhive-studio-bin/PKGBUILD$/"],
-      "matchStrings": ["pkgver=(?<currentValue>.*?)\\n"],
-      "depNameTemplate": "stacklok/toolhive-studio",
-      "datasourceTemplate": "github-releases",
-      "versioningTemplate": "semver"
-    },
-    {
-      "customType": "regex",
-      "managerFilePatterns": ["/^github-copilot-app-bin/PKGBUILD$/"],
-      "matchStrings": ["pkgver=(?<currentValue>.*?)\\n"],
-      "depNameTemplate": "github/app",
-      "datasourceTemplate": "github-releases",
-      "versioningTemplate": "semver"
     }
   ],
   "automerge": true,
