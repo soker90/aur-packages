@@ -1,73 +1,94 @@
 # Arch Linux AUR Package Updater
 
-Repositorio automatizado usando **Renovate** y **GitHub Actions** para monitorear y actualizar automáticamente paquetes de AUR.
+Repositorio automatizado usando **Renovate** y **GitHub Actions** para mantener paquetes de AUR actualizados, validados y publicados.
 
-## 📦 Paquetes Mantenidos
+## 📦 Paquetes mantenidos
 
-| Paquete | Tipo de Actualización | AUR | Estado |
-|---------|-----------------------|-----|--------|
-| **toolhive-studio-bin** | Automática (GitHub Releases) | [![AUR](https://img.shields.io/aur/version/toolhive-studio-bin)](https://aur.archlinux.org/packages/toolhive-studio-bin) | [![Renovate](https://github.com/soker90/aur-packages/workflows/Renovate/badge.svg)](https://github.com/soker90/aur-packages/actions/workflows/renovate.yml) |
-| **github-copilot-app-bin** | Automática (GitHub Releases) | [![AUR](https://img.shields.io/aur/version/github-copilot-app-bin)](https://aur.archlinux.org/packages/github-copilot-app-bin) | [![Renovate](https://github.com/soker90/aur-packages/workflows/Renovate/badge.svg)](https://github.com/soker90/aur-packages/actions/workflows/renovate.yml) |
-| **vega-cli-bin** | Manual (CDN de Amazon) | [![AUR](https://img.shields.io/aur/version/vega-cli-bin)](https://aur.archlinux.org/packages/vega-cli-bin) | [![Renovate](https://github.com/soker90/aur-packages/workflows/Renovate/badge.svg)](https://github.com/soker90/aur-packages/actions/workflows/renovate.yml) |
-
----
-
-## 🔄 Tipos de Actualizaciones y Funcionamiento
-
-### 1. Paquetes 100% Automáticos (`toolhive-studio-bin`, `github-copilot-app-bin`)
-Estos paquetes se actualizan automáticamente utilizando el siguiente flujo:
-1. **Monitoreo**: Cada 6 horas, **Renovate** revisa el repositorio upstream en GitHub (`stacklok/toolhive-studio` y `github/app`) para detectar nuevas versiones.
-2. **Creación de Pull Request**: Si encuentra un nuevo tag o release upstream, Renovate crea un PR actualizando la variable `pkgver` en el `PKGBUILD`.
-3. **Cálculo de Checksums**: GitHub Actions activa el workflow `Update Package Sums` que corre `updpkgsums` y `.SRCINFO` en un contenedor Arch Linux para actualizar las firmas SHA256 automáticamente y sube el commit al PR.
-4. **Verificación**: Un contenedor Arch Linux compila y testea el paquete (`Build and Test Packages`) e instala el software con `pacman -U` para comprobar que funciona correctamente.
-5. **Merge y Publicación**: Al hacer merge del PR, el workflow `Update AUR Package` empuja los cambios directamente al repositorio de AUR.
-
-#### ⚙️ Requisitos para el funcionamiento automático:
-Para que las actualizaciones automáticas se publiquen sin intervención, el repositorio de GitHub necesita estos dos **repository secrets** configurados en *Settings -> Secrets and variables -> Actions*:
-- `RENOVATE_TOKEN`: Personal Access Token (classic) con scopes `repo` y `workflow` para que Renovate pueda crear los PRs.
-- `AUR_SSH_PRIVATE_KEY`: Clave SSH privada específica (`aur-bot@github-actions`) cuya versión pública está registrada en tu cuenta de AUR para poder subir los commits mediante SSH.
+| Paquete | Detección de actualizaciones | AUR | Estado |
+|---------|------------------------------|-----|--------|
+| **toolhive-studio-bin** | Automática (GitHub Releases + Renovate) | [![AUR](https://img.shields.io/aur/version/toolhive-studio-bin)](https://aur.archlinux.org/packages/toolhive-studio-bin) | [![Renovate](https://github.com/soker90/aur-packages/workflows/Renovate/badge.svg)](https://github.com/soker90/aur-packages/actions/workflows/renovate.yml) |
+| **github-copilot-app-bin** | Automática (GitHub Releases + Renovate) | [![AUR](https://img.shields.io/aur/version/github-copilot-app-bin)](https://aur.archlinux.org/packages/github-copilot-app-bin) | [![Renovate](https://github.com/soker90/aur-packages/workflows/Renovate/badge.svg)](https://github.com/soker90/aur-packages/actions/workflows/renovate.yml) |
+| **vega-cli-bin** | Automática (detector del instalador oficial) | [![AUR](https://img.shields.io/aur/version/vega-cli-bin)](https://aur.archlinux.org/packages/vega-cli-bin) | [![Vega](https://github.com/soker90/aur-packages/actions/workflows/detect-vega.yml/badge.svg)](https://github.com/soker90/aur-packages/actions/workflows/detect-vega.yml) |
 
 ---
 
-### 2. Paquetes Manuales (`vega-cli-bin`)
-Algunos paquetes no pueden automatizarse con Renovate porque las urls de origen son dinámicas o propietarias. Por ejemplo, `vega-cli-bin` descarga sus recursos directamente del CDN de Amazon Web Services (`kepler-static-artifacts.kepler.labcollab.net`), el cual no ofrece una API de releases estables como GitHub.
+## 🔄 Flujo de actualización
 
-Para estos casos, la actualización se hace de la siguiente manera:
-1. Editas el `PKGBUILD` localmente con la nueva versión y el checksum descargado.
-2. Haces commit y push de tus cambios a la rama `master`.
-3. El workflow en GitHub Actions detecta el cambio, ejecuta las pruebas de compilación/instalación e inmediatamente empuja la actualización a AUR sin necesidad de que hagas commits manuales en el entorno ssh.aur.
+Todos los cambios de paquetes pasan por el mismo pipeline de validación antes de publicarse en AUR.
 
-#### 💡 ¿Para qué sirve tenerlos en este repositorio si son manuales?
-- **Validación Automática**: En cada cambio manual, GitHub Actions compilará el paquete en un contenedor Arch Linux limpio y verificará que el `PKGBUILD` pase los checks de `namcap` e instalación, detectando errores de dependencias de empaquetado antes de subirlos a producción.
-- **Centralización**: Tienes la receta de todos tus paquetes AUR en un mismo sitio centralizado.
-- **Pipeline de Despliegue (CD)**: El workflow gestionará de forma transparente tus credenciales del bot de AUR y la subida de los cambios a `aur.archlinux.org` tras el commit, eliminando la necesidad de gestionar comandos SSH en múltiples terminales locales.
+### Renovate: ToolHive Studio y GitHub Copilot
+
+1. **Detección**: Renovate se ejecuta cada 6 horas y revisa las releases de los proyectos upstream.
+2. **Pull Request**: cuando hay una versión nueva, Renovate actualiza `pkgver` y crea un PR.
+3. **Metadatos AUR**: un post-upgrade task ejecuta el refresco común de checksums y `.SRCINFO` dentro de Arch Linux.
+4. **Validación**: el workflow `Validate Packages` comprueba cada paquete afectado con `namcap`, verifica las fuentes, regenera `.SRCINFO`, compila e instala el paquete.
+5. **Automerge**: si las comprobaciones requeridas pasan, Renovate puede hacer squash-merge automáticamente.
+6. **Publicación**: al llegar el cambio a `master`, `Update AUR Package` sincroniza `PKGBUILD` y `.SRCINFO` con el repositorio correspondiente de AUR.
+
+### Detector de Vega CLI
+
+`vega-cli-bin` no usa Renovate porque la versión y el artefacto se obtienen del instalador oficial de Vega.
+
+1. **Detección**: `Detect Vega CLI` se ejecuta cada 6 horas y también puede lanzarse manualmente.
+2. **Instalador oficial**: ejecuta el instalador en un entorno aislado y obtiene la versión y la URL exacta del artefacto.
+3. **Validación de la detección**: el script exige una versión semántica válida y exactamente un artefacto Vega reconocible; si el formato upstream cambia, falla en lugar de generar una actualización incorrecta.
+4. **Pull Request**: si hay una versión nueva, actualiza `PKGBUILD`, regenera `.SRCINFO` y crea/actualiza el PR.
+5. **Validación y automerge**: el mismo workflow `Validate Packages` comprueba el PR y la actualización puede hacer squash-merge automáticamente.
+6. **Publicación**: después del merge, `Update AUR Package` publica el paquete en AUR.
 
 ---
 
-## 🛠️ Mantenimiento Manual
+## 🧪 Validación de paquetes
 
-Si necesitas actualizar un paquete manualmente (como `vega-cli-bin`) o hacer una corrección rápida en cualquiera de los paquetes, sigue estos pasos:
+`Validate Packages` es el workflow común para todos los paquetes modificados. Comprueba:
+
+- `namcap` sobre el `PKGBUILD`
+- disponibilidad y checksums de las fuentes mediante `makepkg --verifysource`
+- consistencia de `.SRCINFO`
+- compilación con `makepkg`
+- `namcap` sobre el paquete generado
+- instalación mediante `pacman -U`
+
+Si se modifica la propia lógica de detección o validación, el workflow valida todos los paquetes.
+
+### Actualización manual de checksums
+
+`Update Package Sums` sigue disponible para PRs manuales que cambien un `PKGBUILD` y necesiten recalcular automáticamente los checksums y `.SRCINFO`.
+
+Este workflow no sustituye a `Validate Packages`: uno **actualiza metadatos**, mientras el otro **valida el paquete**.
+
+---
+
+## 🔐 Publicación en AUR
+
+`Update AUR Package` se ejecuta después de cambios en `master` que afecten a `PKGBUILD` o `.SRCINFO`. Detecta los paquetes modificados y sincroniza sus archivos con AUR.
+
+Para publicar automáticamente se necesitan estos repository secrets en *Settings → Secrets and variables → Actions*:
+
+- `RENOVATE_TOKEN`: token utilizado por Renovate y por las automatizaciones que necesitan crear o actualizar PRs.
+- `AUR_SSH_PRIVATE_KEY`: clave SSH cuya pública está registrada en la cuenta de AUR para publicar los paquetes.
+
+---
+
+## 🛠️ Actualización manual
 
 ```bash
-# Cambiar al directorio del paquete
-cd vega-cli-bin/
+cd nombre-del-paquete/
 
-# 1. Editar PKGBUILD con la nueva versión
-vim PKGBUILD  # Actualizar pkgver, pkgrel, y _sha256
+# Editar PKGBUILD
+vim PKGBUILD
 
-# 2. Generar archivo .SRCINFO actualizado
-# (Requiere makepkg instalado - paquete base-devel en Arch Linux)
+# Regenerar .SRCINFO
 makepkg --printsrcinfo > .SRCINFO
 
-# 3. Subir los cambios al repositorio
+# Subir los cambios
 git add PKGBUILD .SRCINFO
-git commit -m "Update vega-cli-bin to version X.Y.Z"
+git commit -m "Update nombre-del-paquete to version X.Y.Z"
 git push origin master
 ```
 
-**Importante**: Siempre debes actualizar **tanto** el `PKGBUILD` **como** el `.SRCINFO` en los paquetes manuales. El `.SRCINFO` contiene metadatos esenciales que AUR utiliza para indexar y mostrar información del paquete.
+Para cambios de fuentes o checksums puedes ejecutar `Update Package Sums` manualmente desde GitHub Actions.
 
-El pipeline de GitHub Actions se encargará de:
-- Validar la compilación en un contenedor Arch Linux limpio
-- Verificar checksums con `makepkg -g`
-- Propagar los cambios automáticamente a AUR usando el bot SSH configurado
+**Importante**: los cambios publicados en el repositorio deben mantener sincronizados `PKGBUILD` y `.SRCINFO`.
+
+El pipeline se encargará de validar el paquete y, una vez integrado en `master`, publicarlo automáticamente en AUR.
