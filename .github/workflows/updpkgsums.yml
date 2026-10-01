@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   detect-changes:
+    if: github.event_name == 'workflow_dispatch' || !startsWith(github.head_ref, 'renovate/')
     runs-on: ubuntu-latest
     outputs:
       packages: ${{ steps.set-matrix.outputs.packages }}
