@@ -19,27 +19,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Detect modified packages
         id: set-matrix
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            # Manual trigger updates all packages if needed
-            DIRS="toolhive-studio-bin github-copilot-app-bin vega-cli-bin"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            PACKAGES_JSON=$(node scripts/detect-packages.mjs --all)
           else
-            # On push, identify which pkg folders were modified
-            DIRS=$(git diff --name-only HEAD~1 HEAD | grep -E "PKGBUILD|\.SRCINFO" | xargs -I {} dirname {} | sort -u | xargs)
+            PACKAGES_JSON=$(node scripts/detect-packages.mjs "$BASE_SHA" "$HEAD_SHA")
           fi
 
-          if [ -z "$DIRS" ]; then
-            echo "packages=[]" >> $GITHUB_OUTPUT
-            echo "any_modified=false" >> $GITHUB_OUTPUT
+          echo "packages=$PACKAGES_JSON" >> "$GITHUB_OUTPUT"
+
+          if [ "$PACKAGES_JSON" = "[]" ]; then
+            echo "any_modified=false" >> "$GITHUB_OUTPUT"
           else
-            JSON_ARRAY=$(echo "$DIRS" | tr ' ' '\n' | jq -R . | jq -s -c .)
-            echo "packages=${JSON_ARRAY}" >> $GITHUB_OUTPUT
-            echo "any_modified=true" >> $GITHUB_OUTPUT
+            echo "any_modified=true" >> "$GITHUB_OUTPUT"
           fi
+
+          echo "Detected packages: $PACKAGES_JSON"
 
   update-aur:
     needs: detect-changes
@@ -83,13 +86,11 @@ jobs:
           cp ${{ matrix.package }}/.SRCINFO aur-repo/
           cd aur-repo
 
-          # Check if there are changes
           if git diff --quiet; then
             echo "No changes to commit"
             exit 0
           fi
 
-          # Get version from PKGBUILD
           VERSION=$(grep "^pkgver=" PKGBUILD | cut -d'=' -f2)
 
           git add PKGBUILD .SRCINFO
