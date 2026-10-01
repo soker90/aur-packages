@@ -1,9 +1,20 @@
-name: Validate PKGBUILD
+name: Validate Packages
 
 on:
   pull_request:
     paths:
       - '**/PKGBUILD'
+      - '**/.SRCINFO'
+      - '.github/scripts/validate-package.sh'
+      - 'scripts/detect-packages.mjs'
+  push:
+    branches:
+      - master
+    paths:
+      - '**/PKGBUILD'
+      - '**/.SRCINFO'
+      - '.github/scripts/validate-package.sh'
+      - 'scripts/detect-packages.mjs'
   workflow_dispatch:
 
 jobs:
@@ -18,7 +29,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Detect modified packages
+      - name: Detect packages to validate
         id: set-matrix
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -28,7 +39,12 @@ jobs:
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             PACKAGES_JSON=$(node scripts/detect-packages.mjs --all)
           else
-            PACKAGES_JSON=$(node scripts/detect-packages.mjs "$BASE_SHA" "$HEAD_SHA")
+            CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+            if echo "$CHANGED_FILES" | grep -Eq '^(\.github/scripts/validate-package\.sh|scripts/detect-packages\.mjs)$'; then
+              PACKAGES_JSON=$(node scripts/detect-packages.mjs --all)
+            else
+              PACKAGES_JSON=$(node scripts/detect-packages.mjs "$BASE_SHA" "$HEAD_SHA")
+            fi
           fi
 
           echo "packages=$PACKAGES_JSON" >> "$GITHUB_OUTPUT"
@@ -39,45 +55,19 @@ jobs:
             echo "any_modified=true" >> "$GITHUB_OUTPUT"
           fi
 
-          echo "Detected packages: $PACKAGES_JSON"
+          echo "Packages to validate: $PACKAGES_JSON"
 
   validate:
     needs: detect-changes
     if: needs.detect-changes.outputs.any_modified == 'true'
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Validate PKGBUILD
-        run: |
-          cd ${{ matrix.package }}
-          docker run --rm -v "$PWD:/pkg" archlinux:latest bash -c "
-            set -e
-            pacman -Syu --noconfirm --needed base-devel namcap
-            useradd -m builder
-            echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
-            chown -R builder:builder /pkg
-            cd /pkg
-            sudo -u builder namcap PKGBUILD
-            sudo -u builder makepkg --printsrcinfo > .SRCINFO.test
-            echo 'PKGBUILD validation successful'
-          "
-          sudo chown -R $(id -u):$(id -g) .
-
-      - name: Check checksums
-        run: |
-          cd ${{ matrix.package }}
-          docker run --rm -v "$PWD:/pkg" archlinux:latest bash -c "
-            set -e
-            pacman -Syu --noconfirm --needed base-devel
-            useradd -m builder
-            echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
-            chown -R builder:builder /pkg
-            cd /pkg
-            sudo -u builder makepkg -g
-          "
-          sudo chown -R $(id -u):$(id -g) .
+      - name: Validate package
+        run: .github/scripts/validate-package.sh "${{ matrix.package }}"
