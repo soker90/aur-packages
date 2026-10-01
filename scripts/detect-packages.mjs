@@ -31,18 +31,20 @@ async function listPackages() {
   return packages.toSorted();
 }
 
-function changedPackages(base, head) {
+async function changedPackages(base, head) {
   const output = execFileSync(
     "git",
-    ["diff", "--name-only", base, head, "--", "*/PKGBUILD"],
+    ["diff", "--name-only", base, head],
     { encoding: "utf8" },
   );
+  const knownPackages = new Set(await listPackages());
 
   return output
     .split("\n")
     .map((path) => path.trim())
-    .filter((path) => /^([^/]+)\/PKGBUILD$/.test(path))
+    .filter((path) => /^[^/]+\/.+/.test(path))
     .map((path) => path.split("/")[0])
+    .filter((packageName) => knownPackages.has(packageName))
     .toSorted()
     .filter((packageName, index, packages) => packages[index - 1] !== packageName);
 }
@@ -52,7 +54,7 @@ let packages;
 if (args.length === 1 && args[0] === "--all") {
   packages = await listPackages();
 } else if (args.length === 2) {
-  packages = changedPackages(args[0], args[1]);
+  packages = await changedPackages(args[0], args[1]);
 } else {
   console.error("Usage: node scripts/detect-packages.mjs --all");
   console.error("   or: node scripts/detect-packages.mjs <base-sha> <head-sha>");
