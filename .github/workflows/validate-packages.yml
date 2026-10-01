@@ -2,14 +2,6 @@ name: Validate Packages
 
 on:
   push:
-    branches:
-      - '**'
-    paths:
-      - '**/PKGBUILD'
-      - '**/.SRCINFO'
-      - '.github/scripts/validate-package.sh'
-      - 'scripts/detect-packages.mjs'
-      - '.github/workflows/validate-packages.yml'
   workflow_dispatch:
 
 jobs:
