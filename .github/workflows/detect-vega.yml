@@ -2,15 +2,7 @@ name: Detect Vega CLI
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
-  push:
-    branches:
-      - '**'
-    paths:
-      - 'vega-cli-bin/PKGBUILD'
-      - 'vega-cli-bin/.SRCINFO'
-      - 'scripts/detect-vega-cli.sh'
-      - '.github/workflows/detect-vega.yml'
+    - cron: '17 */6 * * *'
   workflow_dispatch:
 
 permissions:
