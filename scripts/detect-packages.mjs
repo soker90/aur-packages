@@ -52,7 +52,7 @@ let packages;
 if (args.length === 1 && args[0] === "--all") {
   packages = await listPackages();
 } else if (args.length === 2) {
-  packages = changedPackages(args[0], args[1]);
+  packages = await changedPackages(args[0], args[1]);
 } else {
   console.error("Usage: node scripts/detect-packages.mjs --all");
   console.error("   or: node scripts/detect-packages.mjs <base-sha> <head-sha>");
