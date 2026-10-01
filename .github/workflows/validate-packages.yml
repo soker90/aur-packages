@@ -7,6 +7,7 @@ on:
       - '**/.SRCINFO'
       - '.github/scripts/validate-package.sh'
       - 'scripts/detect-packages.mjs'
+      - '.github/workflows/validate-packages.yml'
   push:
     branches:
       - master
