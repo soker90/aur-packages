@@ -2,6 +2,14 @@ name: Validate Packages
 
 on:
   push:
+    branches:
+      - '**'
+    paths:
+      - '**/PKGBUILD'
+      - '**/.SRCINFO'
+      - '.github/scripts/validate-package.sh'
+      - 'scripts/detect-packages.mjs'
+      - '.github/workflows/validate-packages.yml'
   workflow_dispatch:
 
 jobs:
@@ -27,38 +35,18 @@ jobs:
             PACKAGES_JSON=$(node scripts/detect-packages.mjs --all)
           else
             CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
-            if echo "$CHANGED_FILES" | grep -Eq '^(\.github/scripts/validate-package\.sh|scripts/detect-packages\.mjs|\.github/workflows/validate-packages\.yml)
-              PACKAGES_JSON=$(node scripts/detect-packages.mjs --all)
-            else
-              PACKAGES_JSON=$(node scripts/detect-packages.mjs "$BASE_SHA" "$HEAD_SHA")
-            fi
-          fi
+            validate_all=false
 
-          echo "packages=$PACKAGES_JSON" >> "$GITHUB_OUTPUT"
+            while IFS= read -r path; do
+              case "$path" in
+                .github/scripts/validate-package.sh|scripts/detect-packages.mjs|.github/workflows/validate-packages.yml)
+                  validate_all=true
+                  break
+                  ;;
+              esac
+            done <<< "$CHANGED_FILES"
 
-          if [ "$PACKAGES_JSON" = "[]" ]; then
-            echo "any_modified=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "any_modified=true" >> "$GITHUB_OUTPUT"
-          fi
-
-          echo "Packages to validate: $PACKAGES_JSON"
-
-  validate:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.any_modified == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Validate package
-        run: .github/scripts/validate-package.sh "${{ matrix.package }}"
-; then
+            if [ "$validate_all" = "true" ]; then
               PACKAGES_JSON=$(node scripts/detect-packages.mjs --all)
             else
               PACKAGES_JSON=$(node scripts/detect-packages.mjs "$BASE_SHA" "$HEAD_SHA")
