@@ -1,6 +1,13 @@
 name: Validate Packages
 
 on:
+  pull_request:
+    paths:
+      - '**/PKGBUILD'
+      - '**/.SRCINFO'
+      - '.github/scripts/validate-package.sh'
+      - 'scripts/detect-packages.mjs'
+      - '.github/workflows/validate-packages.yml'
   push:
     branches:
       - '**'
@@ -28,8 +35,8 @@ jobs:
         id: set-matrix
         env:
           EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.before }}
-          HEAD_SHA: ${{ github.sha }}
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             PACKAGES_JSON=$(node scripts/detect-packages.mjs --all)
