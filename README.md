@@ -97,3 +97,11 @@ Para cambios de fuentes o checksums puedes ejecutar `Update Package Sums` manual
 **Importante**: los cambios publicados en el repositorio deben mantener sincronizados `PKGBUILD` y `.SRCINFO`.
 
 El pipeline se encargará de validar el paquete y, una vez integrado en `master`, publicarlo automáticamente en AUR.
+
+---
+
+## 📚 Documentación de mantenimiento
+
+La guía completa para mantener y ampliar la automatización está en [`docs/MAINTENANCE.md`](docs/MAINTENANCE.md). Incluye la arquitectura del sistema, cómo añadir paquetes, el funcionamiento de los conectores de actualización, la validación, el automerge y la publicación en AUR.
+
+Si vas a modificar la automatización del repositorio, consulta esa guía antes de hacer cambios.
