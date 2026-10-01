@@ -16,25 +16,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Detect modified packages
         id: set-matrix
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            DIRS="toolhive-studio-bin github-copilot-app-bin vega-cli-bin"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            PACKAGES_JSON=$(node scripts/detect-packages.mjs --all)
           else
-            DIRS=$(git diff --name-only HEAD~1 HEAD | grep "PKGBUILD" | xargs -I {} dirname {} | sort -u | xargs)
+            PACKAGES_JSON=$(node scripts/detect-packages.mjs "$BASE_SHA" "$HEAD_SHA")
           fi
 
-          if [ -z "$DIRS" ]; then
-            echo "packages=[]" >> $GITHUB_OUTPUT
-            echo "any_modified=false" >> $GITHUB_OUTPUT
+          echo "packages=$PACKAGES_JSON" >> "$GITHUB_OUTPUT"
+
+          if [ "$PACKAGES_JSON" = "[]" ]; then
+            echo "any_modified=false" >> "$GITHUB_OUTPUT"
           else
-            JSON_ARRAY=$(echo "$DIRS" | tr ' ' '\n' | jq -R . | jq -s -c .)
-            echo "packages=${JSON_ARRAY}" >> $GITHUB_OUTPUT
-            echo "any_modified=true" >> $GITHUB_OUTPUT
+            echo "any_modified=true" >> "$GITHUB_OUTPUT"
           fi
+
+          echo "Detected packages: $PACKAGES_JSON"
 
   validate:
     needs: detect-changes
