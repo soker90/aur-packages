@@ -6,6 +6,8 @@ on:
       - '**/PKGBUILD'
       - '**/.SRCINFO'
       - '.github/scripts/validate-package.sh'
+      - '.github/scripts/create-automation-pr.sh'
+      - '.github/workflows/detect-vega.yml'
       - 'scripts/detect-packages.mjs'
       - '.github/workflows/validate-packages.yml'
   push:
@@ -15,6 +17,8 @@ on:
       - '**/PKGBUILD'
       - '**/.SRCINFO'
       - '.github/scripts/validate-package.sh'
+      - '.github/scripts/create-automation-pr.sh'
+      - '.github/workflows/detect-vega.yml'
       - 'scripts/detect-packages.mjs'
       - '.github/workflows/validate-packages.yml'
   workflow_dispatch:
@@ -46,7 +50,7 @@ jobs:
 
             while IFS= read -r path; do
               case "$path" in
-                .github/scripts/validate-package.sh|scripts/detect-packages.mjs|.github/workflows/validate-packages.yml)
+                .github/scripts/validate-package.sh|.github/scripts/create-automation-pr.sh|.github/workflows/detect-vega.yml|scripts/detect-packages.mjs|.github/workflows/validate-packages.yml)
                   validate_all=true
                   break
                   ;;
