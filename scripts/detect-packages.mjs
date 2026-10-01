@@ -31,18 +31,20 @@ async function listPackages() {
   return packages.toSorted();
 }
 
-function changedPackages(base, head) {
+async function changedPackages(base, head) {
   const output = execFileSync(
     "git",
-    ["diff", "--name-only", base, head, "--", "*/PKGBUILD"],
+    ["diff", "--name-only", base, head],
     { encoding: "utf8" },
   );
+  const knownPackages = new Set(await listPackages());
 
   return output
     .split("\n")
     .map((path) => path.trim())
-    .filter((path) => /^([^/]+)\/PKGBUILD$/.test(path))
+    .filter((path) => /^[^/]+\/.+/.test(path))
     .map((path) => path.split("/")[0])
+    .filter((packageName) => knownPackages.has(packageName))
     .toSorted()
     .filter((packageName, index, packages) => packages[index - 1] !== packageName);
 }
