@@ -53,23 +53,7 @@ jobs:
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             PACKAGES_JSON=$(node scripts/detect-packages.mjs --all)
           else
-            CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
-            validate_all=false
-
-            while IFS= read -r path; do
-              case "$path" in
-                .github/scripts/validate-package.sh|.github/scripts/create-automation-pr.sh|.github/scripts/aur-refresh-metadata.sh|.github/workflows/detect-vega.yml|.github/workflows/updpkgsums.yml|scripts/detect-packages.mjs|scripts/detect-vega-cli.sh|scripts/renovate-update-aur-metadata.sh|.github/workflows/validate-packages.yml)
-                  validate_all=true
-                  break
-                  ;;
-              esac
-            done <<< "$CHANGED_FILES"
-
-            if [ "$validate_all" = "true" ]; then
-              PACKAGES_JSON=$(node scripts/detect-packages.mjs --all)
-            else
-              PACKAGES_JSON=$(node scripts/detect-packages.mjs "$BASE_SHA" "$HEAD_SHA")
-            fi
+            PACKAGES_JSON=$(node scripts/detect-packages.mjs "$BASE_SHA" "$HEAD_SHA")
           fi
 
           echo "packages=$PACKAGES_JSON" >> "$GITHUB_OUTPUT"
