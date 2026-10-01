@@ -40,16 +40,21 @@ Todos los cambios de paquetes pasan por el mismo pipeline de validación antes d
 
 ## 🧪 Validación de paquetes
 
-`Validate Packages` es el workflow común para todos los paquetes modificados. Comprueba:
+`Validate Packages` es el workflow común para los paquetes modificados.
+
+- En un PR o push normal, **solo valida los directorios de paquetes que contienen archivos modificados**.
+- Cualquier archivo dentro del directorio de un paquete hace que ese paquete se valide, no solo cambios en `PKGBUILD` o `.SRCINFO`.
+- Los cambios que solo afectan a la automatización o a otros archivos fuera de los directorios de paquetes no provocan validaciones innecesarias.
+- Una ejecución manual de `Validate Packages` puede usar `--all` para validar explícitamente todos los paquetes.
+
+Cada paquete seleccionado se comprueba con:
 
 - `namcap` sobre el `PKGBUILD`
 - disponibilidad y checksums de las fuentes mediante `makepkg --verifysource`
 - consistencia de `.SRCINFO`
 - compilación con `makepkg`
 - `namcap` sobre el paquete generado
-- instalación mediante `pacman -U`
-
-Si se modifica la propia lógica de detección o validación, el workflow valida todos los paquetes.
+- instalación mediante `pacman -U`.
 
 ### Actualización manual de checksums
 
