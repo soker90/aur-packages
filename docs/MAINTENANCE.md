@@ -151,7 +151,7 @@ bash scripts/renovate-update-aur-metadata.sh <paquete>/PKGBUILD
 
 Ese script delega en \`.github/scripts/aur-refresh-metadata.sh\`.
 
-### B. Detector personalizado
+### B. Conector personalizado
 
 Úsalo cuando upstream no sea compatible con Renovate o cuando la versión solo pueda descubrirse ejecutando una herramienta/instalador.
 
@@ -160,29 +160,27 @@ Ese script delega en \`.github/scripts/aur-refresh-metadata.sh\`.
 Estructura recomendada:
 
 \`\`\`text
-scripts/detect-mi-software.sh
-.github/workflows/detect-mi-software.yml
+mi-paquete-bin/
+├── PKGBUILD
+├── .SRCINFO
+└── connector/
+    ├── detect.sh
+    └── update.yml
 \`\`\`
 
 El detector debe obtener la información de una fuente oficial, validar la versión, identificar el artefacto exacto y su checksum y **fallar en lugar de adivinar** si cambia el formato upstream.
 
-El detector de Vega produce:
+El conector de Vega vive dentro del propio paquete y devuelve el contrato estándar:
 
 \`\`\`text
 version=...
-url=...
+source=...
 sha256=...
 \`\`\`
 
-El workflow debe ejecutarse desde \`master\`, mediante schedule y \`workflow_dispatch\`, comprobar si hay actualización, modificar \`PKGBUILD\`, regenerar \`.SRCINFO\` y crear/actualizar la PR.
+\`connector/update.yml\` declara cómo aplicar los metadatos opcionales al \`PKGBUILD\`. \`pkgver\` se actualiza siempre desde \`version\`; las asignaciones de \`source\` y \`sha256\` son explícitas.
 
-Para crear y actualizar PRs automáticas debe reutilizar:
-
-\`\`\`text
-.github/scripts/create-automation-pr.sh
-\`\`\`
-
-No dupliques la lógica de \`gh pr create\`, búsqueda de PR o \`gh pr merge --auto --squash\` en cada conector.
+El workflow común \`.github/workflows/update-packages.yml\` ejecuta \`aur-maintainer\` con schedule y \`workflow_dispatch\`. El Action detecta, actualiza, valida y crea/actualiza la PR, por lo que el paquete no necesita duplicar esa infraestructura.
 
 ## 5. Checklist de un nuevo conector
 
@@ -299,19 +297,17 @@ Evita cambiar detección, validación, automerge y publicación simultáneamente
 8. Update AUR Package → AUR
 \`\`\`
 
-### Paquete con detector personalizado
+### Paquete con conector personalizado
 
 \`\`\`text
 1. Crear <paquete>/PKGBUILD
-2. Crear detector en scripts/
-3. Crear workflow detect-<nombre>.yml
-4. Reutilizar aur-refresh-metadata.sh
-5. Reutilizar create-automation-pr.sh
-6. Incluir el workflow en los paths de Validate Packages
-7. Documentarlo
-8. Probar detección sin actualización
-9. Probar una actualización real
-10. Validate Packages → automerge → master → AUR
+2. Crear <paquete>/connector/detect.sh
+3. Crear <paquete>/connector/update.yml
+4. Hacer que el detector falle ante formatos upstream inesperados
+5. Ejecutar aur-maintainer desde el workflow común
+6. Probar detección sin actualización
+7. Probar una actualización real
+8. Validate Packages → automerge → master → AUR
 \`\`\`
 
 ## 12. Principios de diseño
