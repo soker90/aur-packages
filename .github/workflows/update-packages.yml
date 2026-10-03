@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Update packages
-        uses: soker90/aur-maintainer@main
+        uses: soker90/aur-maintainer@v1
         with:
           github-token: ${{ secrets.RENOVATE_TOKEN }}
           update-branch: automation/aur-maintainer-updates
