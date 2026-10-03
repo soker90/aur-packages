@@ -57,5 +57,5 @@ artifact_url="${artifact_urls[0]}"
 sha256="${artifact_url##*/}"
 
 printf 'version=%s\n' "$version"
-printf 'url=%s\n' "$artifact_url"
+printf 'source=%s\n' "$artifact_url"
 printf 'sha256=%s\n' "$sha256"

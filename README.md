@@ -25,15 +25,15 @@ Todos los cambios de paquetes pasan por el mismo pipeline de validación antes d
 5. **Automerge**: si las comprobaciones requeridas pasan, Renovate puede hacer squash-merge automáticamente.
 6. **Publicación**: al llegar el cambio a `master`, `Update AUR Package` sincroniza `PKGBUILD` y `.SRCINFO` con el repositorio correspondiente de AUR.
 
-### Detector de Vega CLI
+### Vega CLI con aur-maintainer
 
 `vega-cli-bin` no usa Renovate porque la versión y el artefacto se obtienen del instalador oficial de Vega.
 
-1. **Detección**: `Detect Vega CLI` se ejecuta cada 6 horas y también puede lanzarse manualmente.
-2. **Instalador oficial**: ejecuta el instalador en un entorno aislado y obtiene la versión y la URL exacta del artefacto.
-3. **Validación de la detección**: el script exige una versión semántica válida y exactamente un artefacto Vega reconocible; si el formato upstream cambia, falla en lugar de generar una actualización incorrecta.
-4. **Pull Request**: si hay una versión nueva, actualiza `PKGBUILD`, regenera `.SRCINFO` y crea/actualiza el PR.
-5. **Validación y automerge**: el mismo workflow `Validate Packages` comprueba el PR y la actualización puede hacer squash-merge automáticamente.
+1. **Detección**: el workflow `Update Packages` ejecuta `aur-maintainer` cada 6 horas y también puede lanzarse manualmente.
+2. **Instalador oficial**: `vega-cli-bin/connector/detect.sh` ejecuta el instalador en un entorno aislado y obtiene la versión y la URL exacta del artefacto.
+3. **Validación de la detección**: el conector exige una versión válida y exactamente un artefacto Vega reconocible; si el formato upstream cambia, falla en lugar de generar una actualización incorrecta.
+4. **Actualización**: `aur-maintainer` aplica `pkgver`, `source` y `_sha256` según `connector/update.yml`, regenera `.SRCINFO`, valida el paquete y crea/actualiza el PR.
+5. **Validación y automerge**: `Validate Packages` comprueba el PR y actúa como barrera antes del merge.
 6. **Publicación**: después del merge, `Update AUR Package` publica el paquete en AUR.
 
 ---
