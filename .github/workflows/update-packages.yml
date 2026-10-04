@@ -23,4 +23,5 @@ jobs:
         with:
           github-token: ${{ secrets.RENOVATE_TOKEN }}
           base-branch: master
+          update-branch: update
           auto-merge: true
