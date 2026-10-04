@@ -17,7 +17,6 @@ on:
       - '**/PKGBUILD'
       - '**/.SRCINFO'
       - '.github/scripts/validate-package.sh'
-      - '.github/scripts/create-automation-pr.sh'
       - '.github/workflows/update-packages.yml'
       - 'scripts/detect-packages.mjs'
       - '**/connector/**'
