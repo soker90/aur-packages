@@ -7,12 +7,9 @@ on:
       - '**/.SRCINFO'
       - '.github/scripts/validate-package.sh'
       - '.github/scripts/create-automation-pr.sh'
-      - '.github/scripts/aur-refresh-metadata.sh'
       - '.github/workflows/update-packages.yml'
-      - '.github/workflows/updpkgsums.yml'
       - 'scripts/detect-packages.mjs'
       - '**/connector/**'
-      - 'scripts/renovate-update-aur-metadata.sh'
       - '.github/workflows/validate-packages.yml'
   push:
     branches:
