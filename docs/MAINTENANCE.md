@@ -261,12 +261,14 @@ La validación debe actuar como barrera antes del merge.
 
 Solo \`master\` publica automáticamente.
 
-\`Update AUR Package\` detecta los paquetes modificados, prepara SSH, clona el repositorio AUR, copia \`PKGBUILD\` y \`.SRCINFO\`, crea un commit si hay cambios y hace push.
+\`Update AUR Package\` detecta los paquetes modificados y ejecuta \`soker90/aur-maintainer@v1\` en modo \`aur-publish-only\`. El Action se encarga de preparar el repositorio AUR, sincronizar \`PKGBUILD\` y \`.SRCINFO\`, crear el commit si hay cambios y hacer push.
+
+El workflow genera una configuración temporal con el paquete afectado y conserva la clave SSH y los known hosts como entradas del Action. El modo de publicación no vuelve a ejecutar los conectores ni crea una actualización: publica únicamente el estado ya validado de \`master\`.
 
 Secretos:
 
 - \`RENOVATE_TOKEN\`: Renovate y automatizaciones que crean/actualizan PRs.
-- \`AUR_SSH_PRIVATE_KEY\`: publicación en AUR.
+- \`AUR_SSH_PRIVATE_KEY\`: clave privada usada por \`aur-maintainer\` para publicar en AUR.
 
 ## 10. Cambios en la automatización
 
