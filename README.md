@@ -1,107 +1,45 @@
 # Arch Linux AUR Package Updater
 
-Repositorio automatizado usando **Renovate** y **GitHub Actions** para mantener paquetes de AUR actualizados, validados y publicados.
+Repositorio automatizado usando **aur-maintainer** y **GitHub Actions** para mantener paquetes de AUR actualizados, validados y publicados.
 
 ## 📦 Paquetes mantenidos
 
-| Paquete | Detección de actualizaciones | AUR | Estado |
-|---------|------------------------------|-----|--------|
-| **toolhive-studio-bin** | Automática (GitHub Releases + Renovate) | [![AUR](https://img.shields.io/aur/version/toolhive-studio-bin)](https://aur.archlinux.org/packages/toolhive-studio-bin) | [![Renovate](https://github.com/soker90/aur-packages/workflows/Renovate/badge.svg)](https://github.com/soker90/aur-packages/actions/workflows/renovate.yml) |
-| **github-copilot-app-bin** | Automática (GitHub Releases + Renovate) | [![AUR](https://img.shields.io/aur/version/github-copilot-app-bin)](https://aur.archlinux.org/packages/github-copilot-app-bin) | [![Renovate](https://github.com/soker90/aur-packages/workflows/Renovate/badge.svg)](https://github.com/soker90/aur-packages/actions/workflows/renovate.yml) |
-| **vega-cli-bin** | Automática (detector del instalador oficial) | [![AUR](https://img.shields.io/aur/version/vega-cli-bin)](https://aur.archlinux.org/packages/vega-cli-bin) | [![Vega](https://github.com/soker90/aur-packages/actions/workflows/detect-vega.yml/badge.svg)](https://github.com/soker90/aur-packages/actions/workflows/detect-vega.yml) |
-
----
+| Paquete | Detección de actualizaciones | AUR |
+|---------|------------------------------|-----|
+| **toolhive-studio-bin** | GitHub Releases + `aur-maintainer` | [AUR](https://aur.archlinux.org/packages/toolhive-studio-bin) |
+| **github-copilot-app-bin** | GitHub Releases + `aur-maintainer` | [AUR](https://aur.archlinux.org/packages/github-copilot-app-bin) |
+| **vega-cli-bin** | Conector personalizado + `aur-maintainer` | [AUR](https://aur.archlinux.org/packages/vega-cli-bin) |
 
 ## 🔄 Flujo de actualización
 
-Todos los cambios de paquetes pasan por el mismo pipeline de validación antes de publicarse en AUR.
+El workflow **Update Packages** se ejecuta cada 6 horas y también puede lanzarse manualmente. Su responsabilidad es únicamente invocar `soker90/aur-maintainer@v1`.
 
-### Renovate: ToolHive Studio y GitHub Copilot
+El Action descubre los paquetes configurados, consulta upstream, actualiza `PKGBUILD` y sus metadatos, regenera `.SRCINFO` y checksums, valida el paquete, crea o actualiza la PR y solicita squash-automerge cuando está habilitado.
 
-1. **Detección**: Renovate se ejecuta cada 6 horas y revisa las releases de los proyectos upstream.
-2. **Pull Request**: cuando hay una versión nueva, Renovate actualiza `pkgver` y crea un PR.
-3. **Metadatos AUR**: un post-upgrade task ejecuta el refresco común de checksums y `.SRCINFO` dentro de Arch Linux.
-4. **Validación**: el workflow `Validate Packages` comprueba cada paquete afectado con `namcap`, verifica las fuentes, regenera `.SRCINFO`, compila e instala el paquete.
-5. **Automerge**: si las comprobaciones requeridas pasan, Renovate puede hacer squash-merge automáticamente.
-6. **Publicación**: al llegar el cambio a `master`, `Update AUR Package` sincroniza `PKGBUILD` y `.SRCINFO` con el repositorio correspondiente de AUR.
+Después del merge en `master`, **Update AUR Package** vuelve a invocar el mismo Action en modo `aur-publish-only`. El workflow también puede ejecutarse manualmente y publica todos los paquetes configurados; no existe selección manual por paquete.
 
-### Vega CLI con aur-maintainer
+## 🧪 Validación
 
-`vega-cli-bin` no usa Renovate porque la versión y el artefacto se obtienen del instalador oficial de Vega.
+`Validate Packages` sigue siendo la barrera de CI para cambios de paquetes. Comprueba `namcap`, fuentes y checksums, consistencia de `.SRCINFO`, compilación, artefactos e instalación mediante `pacman -U`.
 
-1. **Detección**: el workflow `Update Packages` ejecuta `aur-maintainer` cada 6 horas y también puede lanzarse manualmente.
-2. **Instalador oficial**: `vega-cli-bin/connector/detect.sh` ejecuta el instalador en un entorno aislado y obtiene la versión y la URL exacta del artefacto.
-3. **Validación de la detección**: el conector exige una versión válida y exactamente un artefacto Vega reconocible; si el formato upstream cambia, falla en lugar de generar una actualización incorrecta.
-4. **Actualización**: `aur-maintainer` aplica `pkgver`, `source` y `_sha256` según `connector/update.yml`, regenera `.SRCINFO`, valida el paquete y crea/actualiza el PR.
-5. **Validación y automerge**: `Validate Packages` comprueba el PR y actúa como barrera antes del merge.
-6. **Publicación**: después del merge, `Update AUR Package` publica el paquete en AUR.
-
----
-
-## 🧪 Validación de paquetes
-
-`Validate Packages` es el workflow común para los paquetes modificados.
-
-- En un PR o push normal, **solo valida los directorios de paquetes que contienen archivos modificados**.
-- Cualquier archivo dentro del directorio de un paquete hace que ese paquete se valide, no solo cambios en `PKGBUILD` o `.SRCINFO`.
-- Los cambios que solo afectan a la automatización o a otros archivos fuera de los directorios de paquetes no provocan validaciones innecesarias.
-- Una ejecución manual de `Validate Packages` puede usar `--all` para validar explícitamente todos los paquetes.
-
-Cada paquete seleccionado se comprueba con:
-
-- `namcap` sobre el `PKGBUILD`
-- disponibilidad y checksums de las fuentes mediante `makepkg --verifysource`
-- consistencia de `.SRCINFO`
-- compilación con `makepkg`
-- `namcap` sobre el paquete generado
-- instalación mediante `pacman -U`.
-
-### Actualización manual de checksums
-
-`Update Package Sums` sigue disponible para PRs manuales que cambien un `PKGBUILD` y necesiten recalcular automáticamente los checksums y `.SRCINFO`.
-
-Este workflow no sustituye a `Validate Packages`: uno **actualiza metadatos**, mientras el otro **valida el paquete**.
-
----
+La actualización automática ya no necesita un workflow separado para recalcular checksums: `aur-maintainer` lo hace durante su propio pipeline.
 
 ## 🔐 Publicación en AUR
 
-`Update AUR Package` se ejecuta después de cambios en `master` que afecten a `PKGBUILD` o `.SRCINFO`. Detecta los paquetes modificados y sincroniza sus archivos con AUR.
+Secrets necesarios:
 
-Para publicar automáticamente se necesitan estos repository secrets en *Settings → Secrets and variables → Actions*:
+- `RENOVATE_TOKEN`: token utilizado por `aur-maintainer` para crear o actualizar PRs.
+- `AUR_SSH_PRIVATE_KEY`: clave SSH cuya pública está registrada en la cuenta de AUR.
 
-- `RENOVATE_TOKEN`: token utilizado por Renovate y por las automatizaciones que necesitan crear o actualizar PRs.
-- `AUR_SSH_PRIVATE_KEY`: clave SSH cuya pública está registrada en la cuenta de AUR para publicar los paquetes.
+La publicación solo se produce desde `master`. `aur-maintainer` sincroniza `PKGBUILD`, `.SRCINFO` y los archivos adicionales necesarios con el repositorio AUR.
 
----
+## 🛠️ Añadir un paquete
 
-## 🛠️ Actualización manual
+1. Crear el directorio con su `PKGBUILD` y `.SRCINFO`.
+2. Añadirlo a `.aur-maintainer.yml`.
+3. Crear `update.yml` con el conector correspondiente.
+4. Si es necesario, añadir un conector personalizado dentro del propio paquete.
+5. Crear el repositorio correspondiente en AUR.
+6. Documentar el paquete aquí.
 
-```bash
-cd nombre-del-paquete/
-
-# Editar PKGBUILD
-vim PKGBUILD
-
-# Regenerar .SRCINFO
-makepkg --printsrcinfo > .SRCINFO
-
-# Subir los cambios
-git add PKGBUILD .SRCINFO
-git commit -m "Update nombre-del-paquete to version X.Y.Z"
-git push origin master
-```
-
-Para cambios de fuentes o checksums puedes ejecutar `Update Package Sums` manualmente desde GitHub Actions.
-
-**Importante**: los cambios publicados en el repositorio deben mantener sincronizados `PKGBUILD` y `.SRCINFO`.
-
-El pipeline se encargará de validar el paquete y, una vez integrado en `master`, publicarlo automáticamente en AUR.
-
----
-
-## 📚 Documentación de mantenimiento
-
-La guía completa para mantener y ampliar la automatización está en [`docs/MAINTENANCE.md`](docs/MAINTENANCE.md). Incluye la arquitectura del sistema, cómo añadir paquetes, el funcionamiento de los conectores de actualización, la validación, el automerge y la publicación en AUR.
-
-Si vas a modificar la automatización del repositorio, consulta esa guía antes de hacer cambios.
+La guía completa está en [`docs/MAINTENANCE.md`](docs/MAINTENANCE.md).

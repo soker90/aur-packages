@@ -1,329 +1,162 @@
 # Guía de mantenimiento y automatización
 
-Esta guía explica cómo funciona el repositorio, cómo se actualiza un paquete y cómo incorporar una nueva fuente de actualizaciones ("conector", detector o integración).
+Este repositorio usa `soker90/aur-maintainer@v1` como motor común para detectar actualizaciones, preparar paquetes, validarlos, crear PRs y publicar en AUR.
 
 ## 1. Arquitectura
 
-El repositorio separa cuatro responsabilidades:
+El flujo normal es:
 
-1. **Detección de actualizaciones**: descubre que upstream tiene una versión nueva.
-2. **Preparación del paquete**: actualiza \`PKGBUILD\`, checksums y \`.SRCINFO\`.
-3. **Validación**: comprueba que el paquete sigue siendo correcto y construible.
-4. **Publicación**: después del merge en \`master\`, sincroniza el paquete con AUR.
-
-Flujo normal:
-
-\`\`\`
+```
 Upstream
    │
-   ├── Renovate ───────────────┐
-   │                           │
-   └── Detector/conector ─────┤
-                               ▼
-                         Pull Request
-                               │
-                               ▼
-                     Validate Packages
-                               │
-                         checks OK
-                               │
-                               ▼
-                           Automerge
-                               │
-                               ▼
-                             master
-                               │
-                               ▼
-                       Update AUR Package
-                               │
-                               ▼
-                              AUR
-\`\`\`
-
-### Componentes principales
-
-| Componente | Responsabilidad |
-|---|---|
-| \`renovate.json\` | Configura Renovate y el automerge |
-| \`.github/workflows/renovate.yml\` | Ejecuta Renovate cada 6 horas/manual |
-| \`.github/workflows/detect-vega.yml\` | Ejemplo de detector externo de un upstream que Renovate no puede consultar directamente |
-| \`scripts/detect-packages.mjs\` | Descubre paquetes y detecta cuáles han cambiado |
-| \`.github/scripts/aur-refresh-metadata.sh\` | Actualiza checksums y \`.SRCINFO\` dentro de Arch Linux |
-| \`scripts/renovate-update-aur-metadata.sh\` | Adaptador de Renovate al actualizador común de metadatos |
-| \`.github/scripts/validate-package.sh\` | Validación completa de un paquete |
-| \`.github/workflows/validate-packages.yml\` | Ejecuta la validación solo para los paquetes afectados |
-| \`.github/scripts/create-automation-pr.sh\` | Crea/actualiza una PR automática y solicita squash-automerge |
-| \`.github/workflows/updpkgsums.yml\` | Actualización manual de checksums y \`.SRCINFO\` para PRs normales |
-| \`.github/workflows/update-aur.yml\` | Publica los cambios de \`master\` en AUR |
+   ▼
+Update Packages
+   │  cada 6 horas
+   ▼
+aur-maintainer
+   ├── detectar actualización
+   ├── actualizar PKGBUILD/metadatos
+   ├── regenerar .SRCINFO
+   ├── validar
+   └── crear/actualizar PR
+            │
+            ▼
+       Validate Packages
+            │
+            ▼
+          automerge
+            │
+            ▼
+          master
+            │
+            ▼
+      Update AUR Package
+            │
+            ▼
+           AUR
+```
 
-## 2. Añadir un paquete nuevo
+La lógica de actualización y publicación debe vivir en `aur-maintainer`. Los workflows de este repositorio son únicamente integración con GitHub Actions, credenciales y eventos.
 
-Un paquete es un directorio de primer nivel que contiene un archivo \`PKGBUILD\`.
+## 2. Workflows
 
-Ejemplo:
+### Update Packages
 
-\`\`\`text
-aur-packages/
-├── github-copilot-app-bin/
-│   ├── PKGBUILD
-│   └── .SRCINFO
-├── toolhive-studio-bin/
-│   ├── PKGBUILD
-│   └── .SRCINFO
-└── mi-paquete-bin/
-    ├── PKGBUILD
-    └── .SRCINFO
-\`\`\`
+`.github/workflows/update-packages.yml` se ejecuta:
 
-### Crear y validar
+- cada 6 horas;
+- mediante `workflow_dispatch`.
 
-\`\`\`bash
-mkdir mi-paquete-bin
-cd mi-paquete-bin
-\`\`\`
+Su responsabilidad es invocar `aur-maintainer@v1` con el token de GitHub, la rama de actualización y `auto-merge`.
 
-Crea un \`PKGBUILD\` válido y genera:
+No debe contener lógica de detección, matrices de paquetes ni scripts específicos.
 
-\`\`\`bash
-makepkg --printsrcinfo > .SRCINFO
-\`\`\`
+### Validate Packages
 
-No edites \`.SRCINFO\` manualmente.
+`.github/workflows/validate-packages.yml` actúa como barrera de CI para cambios de paquetes, incluidos cambios manuales.
 
-Validación local recomendada:
+Detecta los paquetes afectados y ejecuta la validación dentro de Arch Linux.
 
-\`\`\`bash
-namcap PKGBUILD
-makepkg --verifysource
-makepkg --printsrcinfo > .SRCINFO.generated
-diff -u .SRCINFO .SRCINFO.generated
-makepkg -sf --noconfirm
-\`\`\`
+### Update AUR Package
 
-Debe existir también un repositorio AUR con el mismo nombre. \`Update AUR Package\` copiará allí \`PKGBUILD\` y \`.SRCINFO\`. La clave de \`AUR_SSH_PRIVATE_KEY\` debe tener permiso para publicar.
+`.github/workflows/update-aur.yml` se ejecuta cuando una PR dirigida a `master` se cierra y cuando se lanza manualmente.
 
-Añade el paquete a la tabla de \`README.md\` y documenta su mecanismo de actualización.
+En ambos casos invoca `aur-maintainer@v1` con `aur-publish-only: true`. La ejecución manual publica todos los paquetes configurados.
 
-## 3. Detección de paquetes
+El workflow no debe detectar paquetes ni generar configuraciones temporales.
 
-\`scripts/detect-packages.mjs\` es la fuente de verdad para descubrir paquetes. Un directorio de primer nivel es paquete si contiene \`PKGBUILD\`.
+## 3. Configuración de paquetes
 
-En PRs y pushes compara dos commits:
-
-\`\`\`bash
-node scripts/detect-packages.mjs <base-sha> <head-sha>
-\`\`\`
-
-Cualquier archivo modificado dentro de un directorio de paquete selecciona ese paquete. Por ejemplo, cambiar \`foo.patch\` dentro de \`mi-paquete-bin/\` también valida \`mi-paquete-bin\`.
+La configuración general está en `.aur-maintainer.yml`:
 
-Los cambios fuera de directorios de paquetes no seleccionan paquetes.
+```yaml
+packages:
+  - github-copilot-app-bin
+  - toolhive-studio-bin
+  - vega-cli-bin
+```
 
-Para validar todo explícitamente:
+Cada paquete declara su conector en `update.yml`.
 
-\`\`\`bash
-node scripts/detect-packages.mjs --all
-\`\`\`
+Para GitHub Releases:
 
-## 4. Añadir un conector/detector
+```yaml
+connector: github-release
+config:
+  repository: owner/repository
+updates: {}
+```
 
-Hay dos modelos.
+Para un conector personalizado:
 
-### A. Renovate
+```yaml
+connector: custom
+config: {}
+updates:
+  source: 'source=("...")'
+  sha256: '_sha256=...'
+```
 
-Úsalo cuando upstream se puede representar con un manager de Renovate, especialmente GitHub Releases.
+Los conectores personalizados viven dentro del propio paquete y deben obtener información de una fuente oficial, validar la respuesta y fallar ante formatos inesperados.
 
-Actualmente se usa para \`stacklok/toolhive-studio\` y \`github/app\`.
+## 4. Añadir un paquete
 
-Para añadir otro paquete:
+1. Crear el directorio con `PKGBUILD` y `.SRCINFO`.
+2. Crear el repositorio correspondiente en AUR.
+3. Añadir el paquete a `.aur-maintainer.yml`.
+4. Añadir su `update.yml`.
+5. Añadir un conector personalizado solo cuando los conectores integrados no sean suficientes.
+6. Documentarlo en `README.md`.
 
-1. Añade el patrón del \`PKGBUILD\` a \`renovate.json\`.
-2. Comprueba que Renovate detecta correctamente la versión.
-3. Si los checksums no pueden tratarse como digest normal, usa el \`postUpgradeTasks\` existente.
-4. Asegúrate de que el comando está permitido por \`RENOVATE_ALLOWED_COMMANDS\`.
-5. Limita \`fileFilters\` a los archivos que el task puede modificar.
-6. Ejecuta Renovate y revisa la PR generada.
+No se debe crear un workflow específico para un paquete salvo que exista una necesidad que no pueda encapsularse en `aur-maintainer`.
 
-El comando común de metadatos es:
+## 5. Validación
 
-\`\`\`bash
-bash scripts/renovate-update-aur-metadata.sh <paquete>/PKGBUILD
-\`\`\`
+`aur-maintainer` regenera checksums y `.SRCINFO` durante una actualización y valida el paquete antes de crear o actualizar la PR.
 
-Ese script delega en \`.github/scripts/aur-refresh-metadata.sh\`.
+La validación comprueba:
 
-### B. Conector personalizado
+1. `namcap PKGBUILD`;
+2. `makepkg --verifysource`;
+3. consistencia de `.SRCINFO`;
+4. compilación con `makepkg`;
+5. `namcap` de los artefactos;
+6. instalación mediante `pacman -U`.
 
-Úsalo cuando upstream no sea compatible con Renovate o cuando la versión solo pueda descubrirse ejecutando una herramienta/instalador.
+`Validate Packages` mantiene además una barrera de CI independiente para cambios que lleguen al repositorio por otras vías.
 
-\`vega-cli-bin\` es el ejemplo de referencia.
+## 6. Automerge
 
-Estructura recomendada:
+El workflow de actualización habilita `auto-merge: true`.
 
-\`\`\`text
-mi-paquete-bin/
-├── PKGBUILD
-├── .SRCINFO
-└── connector/
-    ├── detect.sh
-    └── update.yml
-\`\`\`
+`aur-maintainer` crea o actualiza la PR y solicita automerge con método squash. La validación de CI debe seguir siendo una barrera antes del merge.
 
-El detector debe obtener la información de una fuente oficial, validar la versión, identificar el artefacto exacto y su checksum y **fallar en lugar de adivinar** si cambia el formato upstream.
+## 7. Publicación en AUR
 
-El conector de Vega vive dentro del propio paquete y devuelve el contrato estándar:
+Solo `master` publica automáticamente.
 
-\`\`\`text
-version=...
-source=...
-sha256=...
-\`\`\`
+`Update AUR Package` delega directamente en `aur-maintainer@v1` con `aur-publish-only: true`.
 
-\`connector/update.yml\` declara cómo aplicar los metadatos opcionales al \`PKGBUILD\`. \`pkgver\` se actualiza siempre desde \`version\`; las asignaciones de \`source\` y \`sha256\` son explícitas.
+El Action:
 
-El workflow común \`.github/workflows/update-packages.yml\` ejecuta \`aur-maintainer\` con schedule y \`workflow_dispatch\`. El Action detecta, actualiza, valida y crea/actualiza la PR, por lo que el paquete no necesita duplicar esa infraestructura.
+- prepara un checkout temporal del repositorio AUR;
+- sincroniza `PKGBUILD`, `.SRCINFO` y los archivos necesarios;
+- comprueba si existen cambios;
+- crea el commit solo cuando hay cambios;
+- hace push a `master`.
 
-## 5. Checklist de un nuevo conector
+La clave SSH y los known hosts son las únicas credenciales específicas que necesita el workflow de publicación.
 
-- [ ] Fuente oficial y reproducible.
-- [ ] Falla si cambia el formato esperado.
-- [ ] Versión con formato válido.
-- [ ] Artefacto correcto para la arquitectura.
-- [ ] Checksum del artefacto correcto.
-- [ ] Solo modifica el paquete correspondiente.
-- [ ] Regenera \`.SRCINFO\`.
-- [ ] Reutiliza \`create-automation-pr.sh\`.
-- [ ] La PR pasa \`Validate Packages\`.
-- [ ] La rama automática tiene un nombre estable.
-- [ ] El workflow tiene solo los permisos necesarios.
-- [ ] El cambio llega a \`master\` antes de publicar en AUR.
-- [ ] \`Update AUR Package\` detecta correctamente el paquete.
+## 8. Principios de diseño
 
-## 6. Validación
+- Una implementación por responsabilidad.
+- `aur-maintainer` es la fuente común de la lógica de actualización y publicación.
+- Los workflows de `aur-packages` deben ser finos.
+- No duplicar detección de paquetes en workflows.
+- No crear matrices de publicación innecesarias.
+- Los paquetes declaran su conector mediante configuración.
+- Solo `master` publica en AUR.
+- La validación no se debe saltar para conseguir automerge.
+- Los workflows deben usar los permisos mínimos necesarios.
 
-El flujo común es:
-
-\`\`\`text
-Validate Packages
-        │
-        ▼
-detect-packages.mjs
-        │
-        ├── paquete A ──► validate-package.sh
-        ├── paquete B ──► validate-package.sh
-        └── paquete C ──► validate-package.sh
-\`\`\`
-
-Cada paquete pasa por:
-
-1. \`namcap PKGBUILD\`
-2. \`makepkg --verifysource\`
-3. regeneración y comparación de \`.SRCINFO\`
-4. \`makepkg -sf\`
-5. \`namcap\` del artefacto
-6. instalación mediante \`pacman -U\`
-
-La validación se ejecuta dentro de \`archlinux:latest\`.
-
-## 7. Checksums y .SRCINFO
-
-La implementación común es \`.github/scripts/aur-refresh-metadata.sh\`.
-
-Hace:
-
-1. comprobación de las fuentes GitHub Release;
-2. \`updpkgsums\` con reintentos;
-3. \`makepkg --nobuild --nodeps --verifysource\` con reintentos;
-4. regeneración de \`.SRCINFO\`.
-
-Los reintentos cubren la ventana en la que una release ya existe pero sus assets todavía se están publicando.
-
-## 8. Automerge
-
-### Renovate
-
-\`renovate.json\` configura:
-
-\`\`\`json
-"automerge": true,
-"automergeType": "pr",
-"platformAutomerge": false
-\`\`\`
-
-Renovate crea la PR y solicita automerge cuando se cumplen sus condiciones.
-
-### Detectores personalizados
-
-Usan \`.github/scripts/create-automation-pr.sh\`. El helper configura Git, publica/actualiza la rama, busca la PR existente, la crea o actualiza y solicita \`gh pr merge --auto --squash\`.
-
-La validación debe actuar como barrera antes del merge.
-
-## 9. Publicación en AUR
-
-Solo \`master\` publica automáticamente.
-
-\`Update AUR Package\` detecta los paquetes modificados y ejecuta \`soker90/aur-maintainer@v1\` en modo \`aur-publish-only\`. El Action se encarga de preparar el repositorio AUR, sincronizar \`PKGBUILD\` y \`.SRCINFO\`, crear el commit si hay cambios y hacer push.
-
-El workflow genera una configuración temporal con el paquete afectado y conserva la clave SSH y los known hosts como entradas del Action. El modo de publicación no vuelve a ejecutar los conectores ni crea una actualización: publica únicamente el estado ya validado de \`master\`.
-
-Secretos:
-
-- \`RENOVATE_TOKEN\`: Renovate y automatizaciones que crean/actualizan PRs.
-- \`AUR_SSH_PRIVATE_KEY\`: clave privada usada por \`aur-maintainer\` para publicar en AUR.
-
-## 10. Cambios en la automatización
-
-Si modificas \`detect-packages.mjs\`, cualquiera de los scripts comunes, un detector o sus workflows, comprueba siempre:
-
-1. cambios normales de un paquete;
-2. cambios en cualquier archivo dentro del paquete;
-3. cambios fuera de paquetes;
-4. ejecución manual con \`--all\`;
-5. actualización de una PR automática existente;
-6. validación como barrera del automerge;
-7. publicación posterior en AUR.
-
-Evita cambiar detección, validación, automerge y publicación simultáneamente salvo que sea necesario.
-
-## 11. Receta rápida
-
-### Paquete con GitHub Releases
-
-\`\`\`text
-1. Crear <paquete>/PKGBUILD
-2. Generar .SRCINFO
-3. Validar localmente
-4. Crear el paquete en AUR
-5. Añadirlo a Renovate
-6. Documentarlo
-7. PR → Validate Packages → merge
-8. Update AUR Package → AUR
-\`\`\`
-
-### Paquete con conector personalizado
-
-\`\`\`text
-1. Crear <paquete>/PKGBUILD
-2. Crear <paquete>/connector/detect.sh
-3. Crear <paquete>/connector/update.yml
-4. Hacer que el detector falle ante formatos upstream inesperados
-5. Ejecutar aur-maintainer desde el workflow común
-6. Probar detección sin actualización
-7. Probar una actualización real
-8. Validate Packages → automerge → master → AUR
-\`\`\`
-
-## 12. Principios de diseño
-
-- **Una implementación por responsabilidad.**
-- **Los paquetes se descubren automáticamente.**
-- **La validación es común para cualquier origen.**
-- **Los detectores no deben adivinar.**
-- **Los metadatos AUR se generan con herramientas Arch.**
-- **Las PR automáticas usan el helper común.**
-- **Solo \`master\` publica en AUR.**
-- **Los cambios normales validan únicamente paquetes afectados.**
-- **Las ejecuciones manuales pueden usar \`--all\`.**
-- **No se debe saltar la validación para conseguir automerge.**
-- **Los workflows deben tener los permisos mínimos necesarios.**
-
-Esta separación permite añadir nuevos paquetes y nuevas fuentes de actualización sin duplicar toda la infraestructura.
+El objetivo es poder añadir un paquete nuevo mediante configuración y archivos del propio paquete, sin crear infraestructura de CI específica para él.
