@@ -49,50 +49,35 @@ jobs:
     if: needs.detect-changes.outputs.any_modified == 'true'
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
-      - name: Setup SSH for AUR
+      - name: Create package configuration
         env:
-          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          PACKAGE: ${{ matrix.package }}
         run: |
-          mkdir -p ~/.ssh
-          echo "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
-          chmod 600 ~/.ssh/aur
-          ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts
-          cat >> ~/.ssh/config << EOF
-          Host aur.archlinux.org
-            IdentityFile ~/.ssh/aur
-            User aur
+          cat > .aur-maintainer-publish.yml <<EOF
+          packages:
+            - "$PACKAGE"
           EOF
 
-      - name: Configure Git
+      - name: Resolve AUR known hosts
+        id: known-hosts
         run: |
-          git config --global user.name "Eduardo Parra"
-          git config --global user.email "eduparra90@gmail.com"
+          {
+            echo 'hosts<<EOF'
+            ssh-keyscan -H aur.archlinux.org
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Clone AUR repository
-        run: |
-          git clone ssh://aur@aur.archlinux.org/${{ matrix.package }}.git aur-repo
-
-      - name: Update AUR package
-        run: |
-          cp ${{ matrix.package }}/PKGBUILD aur-repo/
-          cp ${{ matrix.package }}/.SRCINFO aur-repo/
-          cd aur-repo
-
-          if git diff --quiet; then
-            echo "No changes to commit"
-            exit 0
-          fi
-
-          VERSION=$(grep "^pkgver=" PKGBUILD | cut -d'=' -f2)
-
-          git add PKGBUILD .SRCINFO
-          git commit -m "Update to version ${VERSION}"
-          git push
+      - name: Publish package to AUR
+        uses: soker90/aur-maintainer@v1
+        with:
+          config: .aur-maintainer-publish.yml
+          aur-publish-only: true
+          aur-ssh-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          aur-known-hosts: ${{ steps.known-hosts.outputs.hosts }}
