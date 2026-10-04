@@ -1,0 +1,4 @@
+packages:
+  - github-copilot-app-bin
+  - toolhive-studio-bin
+  - vega-cli-bin
