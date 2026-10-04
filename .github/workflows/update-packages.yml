@@ -25,3 +25,4 @@ jobs:
           update-branch: automation/aur-maintainer-updates
           base-branch: master
           auto-merge: true
+          validation-workflow: validate-packages.yml
