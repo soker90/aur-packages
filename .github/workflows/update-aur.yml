@@ -1,12 +1,11 @@
 name: Update AUR Package
 
 on:
-  push:
+  pull_request:
     branches:
       - master
-    paths:
-      - '**/PKGBUILD'
-      - '**/.SRCINFO'
+    types:
+      - closed
   workflow_dispatch:
     inputs:
       package:
@@ -30,8 +29,8 @@ jobs:
         id: set-matrix
         env:
           EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.before }}
-          HEAD_SHA: ${{ github.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
           PACKAGE: ${{ inputs.package }}
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
@@ -66,7 +65,7 @@ jobs:
 
   update-aur:
     needs: detect-changes
-    if: needs.detect-changes.outputs.any_modified == 'true'
+    if: needs.detect-changes.outputs.any_modified == 'true' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
