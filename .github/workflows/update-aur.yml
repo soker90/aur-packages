@@ -8,6 +8,11 @@ on:
       - '**/PKGBUILD'
       - '**/.SRCINFO'
   workflow_dispatch:
+    inputs:
+      package:
+        description: Package to publish (leave empty to publish all packages)
+        required: false
+        type: string
 
 jobs:
   detect-changes:
@@ -27,9 +32,24 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.before }}
           HEAD_SHA: ${{ github.sha }}
+          PACKAGE: ${{ inputs.package }}
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            PACKAGES_JSON=$(node scripts/detect-packages.mjs --all)
+            AVAILABLE_PACKAGES=$(node scripts/detect-packages.mjs --all)
+
+            if [ -z "$PACKAGE" ]; then
+              PACKAGES_JSON="$AVAILABLE_PACKAGES"
+            else
+              PACKAGES_JSON=$(AVAILABLE_PACKAGES="$AVAILABLE_PACKAGES" PACKAGE="$PACKAGE" node -e '
+                const packages = JSON.parse(process.env.AVAILABLE_PACKAGES)
+                const requested = process.env.PACKAGE
+                if (!packages.includes(requested)) {
+                  console.error(`Unknown package: ${requested}`)
+                  process.exit(1)
+                }
+                console.log(JSON.stringify([requested]))
+              ')
+            fi
           else
             PACKAGES_JSON=$(node scripts/detect-packages.mjs "$BASE_SHA" "$HEAD_SHA")
           fi
