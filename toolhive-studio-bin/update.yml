@@ -1,0 +1,4 @@
+connector: github-release
+config:
+  repository: stacklok/toolhive-studio
+updates: {}
