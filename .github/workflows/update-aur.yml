@@ -7,82 +7,17 @@ on:
     types:
       - closed
   workflow_dispatch:
-    inputs:
-      package:
-        description: Package to publish (leave empty to publish all packages)
-        required: false
-        type: string
+
+permissions:
+  contents: read
 
 jobs:
-  detect-changes:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    outputs:
-      packages: ${{ steps.set-matrix.outputs.packages }}
-      any_modified: ${{ steps.set-matrix.outputs.any_modified }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Detect modified packages
-        id: set-matrix
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          HEAD_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
-          PACKAGE: ${{ inputs.package }}
-        run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            AVAILABLE_PACKAGES=$(node scripts/detect-packages.mjs --all)
-
-            if [ -z "$PACKAGE" ]; then
-              PACKAGES_JSON="$AVAILABLE_PACKAGES"
-            else
-              PACKAGES_JSON=$(AVAILABLE_PACKAGES="$AVAILABLE_PACKAGES" PACKAGE="$PACKAGE" node -e '
-                const packages = JSON.parse(process.env.AVAILABLE_PACKAGES)
-                const requested = process.env.PACKAGE
-                if (!packages.includes(requested)) {
-                  console.error(`Unknown package: ${requested}`)
-                  process.exit(1)
-                }
-                console.log(JSON.stringify([requested]))
-              ')
-            fi
-          else
-            PACKAGES_JSON=$(node scripts/detect-packages.mjs "$BASE_SHA" "$HEAD_SHA")
-          fi
-
-          echo "packages=$PACKAGES_JSON" >> "$GITHUB_OUTPUT"
-
-          if [ "$PACKAGES_JSON" = "[]" ]; then
-            echo "any_modified=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "any_modified=true" >> "$GITHUB_OUTPUT"
-          fi
-
-          echo "Detected packages: $PACKAGES_JSON"
-
-  update-aur:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.any_modified == 'true' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true)
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package: ${{ fromJson(needs.detect-changes.outputs.packages) }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Create package configuration
-        env:
-          PACKAGE: ${{ matrix.package }}
-        run: |
-          cat > .aur-maintainer-publish.yml <<EOF
-          packages:
-            - "$PACKAGE"
-          EOF
 
       - name: Resolve AUR known hosts
         id: known-hosts
@@ -93,10 +28,9 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: Publish package to AUR
+      - name: Publish packages to AUR
         uses: soker90/aur-maintainer@v1
         with:
-          config: .aur-maintainer-publish.yml
           aur-publish-only: true
           aur-ssh-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           aur-known-hosts: ${{ steps.known-hosts.outputs.hosts }}
