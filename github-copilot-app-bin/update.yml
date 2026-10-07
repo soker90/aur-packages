@@ -1,4 +1,0 @@
-connector: github-release
-config:
-  repository: github/app
-updates: {}
