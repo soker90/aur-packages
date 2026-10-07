@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: '17 */6 * * *'
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Operation to run
+        required: true
+        type: choice
+        default: maintain
+        options:
+          - maintain
+          - publish
   pull_request:
     branches:
       - master
@@ -16,7 +25,7 @@ permissions:
 
 jobs:
   maintain:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'maintain')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -33,7 +42,7 @@ jobs:
           auto-merge: true
 
   publish:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'publish')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
