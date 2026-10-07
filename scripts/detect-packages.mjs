@@ -31,13 +31,36 @@ async function listPackages() {
   return packages.toSorted();
 }
 
+function commitExists(ref) {
+  try {
+    execFileSync("git", ["cat-file", "-e", `${ref}^{commit}`], {
+      stdio: "ignore",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function changedPackages(base, head) {
+  const knownPackages = new Set(await listPackages());
+
+  // A push event can provide a before SHA that is no longer reachable after
+  // a force-push or branch rewrite. In that case we cannot safely determine a
+  // partial package set, so validate every package instead of failing CI or
+  // silently skipping a changed package.
+  if (!commitExists(base) || !commitExists(head)) {
+    console.warn(
+      `Unable to resolve comparison commits (${base} -> ${head}); validating all packages.`,
+    );
+    return [...knownPackages].toSorted();
+  }
+
   const output = execFileSync(
     "git",
     ["diff", "--name-only", base, head],
     { encoding: "utf8" },
   );
-  const knownPackages = new Set(await listPackages());
 
   return output
     .split("\n")
