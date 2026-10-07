@@ -1,0 +1,65 @@
+name: AUR Maintainer
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Operation to run
+        required: true
+        type: choice
+        default: maintain
+        options:
+          - maintain
+          - publish
+  pull_request:
+    branches:
+      - master
+    types:
+      - closed
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  maintain:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'maintain')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.RENOVATE_TOKEN }}
+
+      - name: Maintain AUR packages
+        uses: soker90/aur-maintainer@5726187ec1f224374135c2d40ad6fde2fbf2f6ec
+        with:
+          github-token: ${{ secrets.RENOVATE_TOKEN }}
+          base-branch: master
+          update-branch: update
+          auto-merge: true
+
+  publish:
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'publish')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Resolve AUR known hosts
+        id: known-hosts
+        run: |
+          {
+            echo 'hosts<<EOF'
+            ssh-keyscan -H aur.archlinux.org
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish packages to AUR
+        uses: soker90/aur-maintainer@5726187ec1f224374135c2d40ad6fde2fbf2f6ec
+        with:
+          aur-publish-only: true
+          aur-ssh-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          aur-known-hosts: ${{ steps.known-hosts.outputs.hosts }}

@@ -1,4 +1,19 @@
 packages:
-  - github-copilot-app-bin
-  - toolhive-studio-bin
-  - vega-cli-bin
+  - path: github-copilot-app-bin
+    connector: github-release
+    config:
+      repository: github/app
+    updates: {}
+
+  - path: toolhive-studio-bin
+    connector: github-release
+    config:
+      repository: stacklok/toolhive-studio
+    updates: {}
+
+  - path: vega-cli-bin
+    connector: custom
+    config: {}
+    updates:
+      source: 'source=("vega-$' + '{version}-linux-x86_64.tar.gz::$' + '{source}")'
+      sha256: '_sha256=$' + '{sha256}'

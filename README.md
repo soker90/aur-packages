@@ -12,17 +12,15 @@ Repositorio automatizado usando **aur-maintainer** y **GitHub Actions** para man
 
 ## 🔄 Flujo de actualización
 
-El workflow **Update Packages** se ejecuta cada 6 horas y también puede lanzarse manualmente. Su responsabilidad es únicamente invocar `soker90/aur-maintainer@v1`.
+El workflow **AUR Maintainer** se ejecuta cada 6 horas y también puede lanzarse manualmente. Su responsabilidad es únicamente invocar `soker90/aur-maintainer`.
 
-El Action descubre los paquetes configurados, consulta upstream, actualiza `PKGBUILD` y sus metadatos, regenera `.SRCINFO` y checksums, valida el paquete, crea o actualiza la PR y solicita squash-automerge cuando está habilitado.
+La Action descubre los paquetes configurados, consulta upstream, actualiza `PKGBUILD` y sus metadatos, regenera `.SRCINFO` y checksums, valida el paquete, crea la rama `update/...`, crea o actualiza la PR y solicita squash-automerge cuando está habilitado.
 
-Después del merge en `master`, **Update AUR Package** vuelve a invocar el mismo Action en modo `aur-publish-only`. El workflow también puede ejecutarse manualmente y publica todos los paquetes configurados; no existe selección manual por paquete.
+Después del merge en `master`, **AUR Maintainer** vuelve a invocar la misma Action en modo `aur-publish-only`. El workflow también permite seleccionar manualmente el modo `publish`.
 
 ## 🧪 Validación
 
-`Validate Packages` sigue siendo la barrera de CI para cambios de paquetes. Comprueba `namcap`, fuentes y checksums, consistencia de `.SRCINFO`, compilación, artefactos e instalación mediante `pacman -U`.
-
-La actualización automática ya no necesita un workflow separado para recalcular checksums: `aur-maintainer` lo hace durante su propio pipeline.
+La validación del `PKGBUILD` forma parte del pipeline de `aur-maintainer`. El repositorio consumidor no mantiene un workflow de validación separado.
 
 ## 🔐 Publicación en AUR
 
@@ -37,9 +35,8 @@ La publicación solo se produce desde `master`. `aur-maintainer` sincroniza `PKG
 
 1. Crear el directorio con su `PKGBUILD` y `.SRCINFO`.
 2. Añadirlo a `.aur-maintainer.yml`.
-3. Crear `update.yml` con el conector correspondiente.
-4. Si es necesario, añadir un conector personalizado dentro del propio paquete.
-5. Crear el repositorio correspondiente en AUR.
-6. Documentar el paquete aquí.
+3. Elegir un connector integrado o añadir únicamente el código necesario para un custom connector dentro del propio paquete.
+4. Crear el repositorio correspondiente en AUR.
+5. Documentar el paquete aquí.
 
 La guía completa está en [`docs/MAINTENANCE.md`](docs/MAINTENANCE.md).

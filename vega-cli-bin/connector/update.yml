@@ -1,5 +1,0 @@
-connector: custom
-config: {}
-updates:
-  source: 'source=("vega-${version}-linux-x86_64.tar.gz::${source}")'
-  sha256: '_sha256=${sha256}'

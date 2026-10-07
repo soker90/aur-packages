@@ -1,162 +1,127 @@
 # Guía de mantenimiento y automatización
 
-Este repositorio usa `soker90/aur-maintainer@v1` como motor común para detectar actualizaciones, preparar paquetes, validarlos, crear PRs y publicar en AUR.
+Este repositorio usa `soker90/aur-maintainer` como motor común para detectar
+actualizaciones, preparar paquetes, validarlos, crear PRs y publicar en AUR.
 
 ## 1. Arquitectura
 
 El flujo normal es:
 
-```
+```text
 Upstream
    │
    ▼
-Update Packages
-   │  cada 6 horas
-   ▼
-aur-maintainer
+AUR Maintainer
    ├── detectar actualización
    ├── actualizar PKGBUILD/metadatos
    ├── regenerar .SRCINFO
    ├── validar
-   └── crear/actualizar PR
+   └── crear PR update/<paquete>
             │
             ▼
-       Validate Packages
-            │
-            ▼
-          automerge
+         automerge
             │
             ▼
           master
             │
             ▼
-      Update AUR Package
+       aur-publish-only
             │
             ▼
            AUR
 ```
 
-La lógica de actualización y publicación debe vivir en `aur-maintainer`. Los workflows de este repositorio son únicamente integración con GitHub Actions, credenciales y eventos.
+La lógica de actualización, validación y publicación vive en `aur-maintainer`.
+Este repositorio solo aporta configuración, `PKGBUILD` y código específico de
+custom connectors.
 
-## 2. Workflows
+## 2. Workflow
 
-### Update Packages
+`.github/workflows/aur-maintainer.yml` es únicamente un wrapper de GitHub
+Actions. Ejecuta `aur-maintainer` de forma programada o manual.
 
-`.github/workflows/update-packages.yml` se ejecuta:
+El modo `maintain` detecta actualizaciones, modifica los paquetes, valida el
+resultado y crea PRs. El modo `publish` publica los paquetes en AUR. Tras una
+PR fusionada en `master`, la publicación se ejecuta automáticamente.
 
-- cada 6 horas;
-- mediante `workflow_dispatch`.
-
-Su responsabilidad es invocar `aur-maintainer@v1` con el token de GitHub, la rama de actualización y `auto-merge`.
-
-No debe contener lógica de detección, matrices de paquetes ni scripts específicos.
-
-### Validate Packages
-
-`.github/workflows/validate-packages.yml` actúa como barrera de CI para cambios de paquetes, incluidos cambios manuales.
-
-Detecta los paquetes afectados y ejecuta la validación dentro de Arch Linux.
-
-### Update AUR Package
-
-`.github/workflows/update-aur.yml` se ejecuta cuando una PR dirigida a `master` se cierra y cuando se lanza manualmente.
-
-En ambos casos invoca `aur-maintainer@v1` con `aur-publish-only: true`. La ejecución manual publica todos los paquetes configurados.
-
-El workflow no debe detectar paquetes ni generar configuraciones temporales.
+No debe existir lógica de detección de paquetes, matrices de validación ni
+scripts de actualización en este repositorio.
 
 ## 3. Configuración de paquetes
 
-La configuración general está en `.aur-maintainer.yml`:
+La configuración general está en `.aur-maintainer.yml` y cada entrada declara
+la ruta y el connector que debe utilizar:
 
 ```yaml
 packages:
-  - github-copilot-app-bin
-  - toolhive-studio-bin
-  - vega-cli-bin
+  - path: github-copilot-app-bin
+    connector: github-release
+    config:
+      repository: github/app
+    updates: {}
+
+  - path: toolhive-studio-bin
+    connector: github-release
+    config:
+      repository: stacklok/toolhive-studio
+    updates: {}
+
+  - path: vega-cli-bin
+    connector: custom
+    config: {}
+    updates:
+      source: 'source=("vega-${version}-linux-x86_64.tar.gz::${source}")'
+      sha256: '_sha256=${sha256}'
 ```
 
-Cada paquete declara su conector en `update.yml`.
-
-Para GitHub Releases:
-
-```yaml
-connector: github-release
-config:
-  repository: owner/repository
-updates: {}
-```
-
-Para un conector personalizado:
-
-```yaml
-connector: custom
-config: {}
-updates:
-  source: 'source=("...")'
-  sha256: '_sha256=...'
-```
-
-Los conectores personalizados viven dentro del propio paquete y deben obtener información de una fuente oficial, validar la respuesta y fallar ante formatos inesperados.
+Los paquetes no necesitan `update.yml`. Un custom connector puede conservar
+su implementación específica dentro del directorio del paquete, por ejemplo
+`vega-cli-bin/connector/detect.sh`.
 
 ## 4. Añadir un paquete
 
 1. Crear el directorio con `PKGBUILD` y `.SRCINFO`.
 2. Crear el repositorio correspondiente en AUR.
 3. Añadir el paquete a `.aur-maintainer.yml`.
-4. Añadir su `update.yml`.
-5. Añadir un conector personalizado solo cuando los conectores integrados no sean suficientes.
-6. Documentarlo en `README.md`.
-
-No se debe crear un workflow específico para un paquete salvo que exista una necesidad que no pueda encapsularse en `aur-maintainer`.
+4. Elegir un connector integrado o añadir un custom connector solo cuando sea
+   necesario.
+5. Documentarlo en `README.md`.
 
 ## 5. Validación
 
-`aur-maintainer` regenera checksums y `.SRCINFO` durante una actualización y valida el paquete antes de crear o actualizar la PR.
+`aur-maintainer` valida los paquetes durante el proceso de actualización. La
+validación incluye `namcap`, fuentes y checksums, consistencia de `.SRCINFO`,
+compilación, artefactos e instalación mediante `pacman -U`.
 
-La validación comprueba:
-
-1. `namcap PKGBUILD`;
-2. `makepkg --verifysource`;
-3. consistencia de `.SRCINFO`;
-4. compilación con `makepkg`;
-5. `namcap` de los artefactos;
-6. instalación mediante `pacman -U`.
-
-`Validate Packages` mantiene además una barrera de CI independiente para cambios que lleguen al repositorio por otras vías.
+No existe un workflow de validación paralelo en `aur-packages`: así evitamos
+duplicar la lógica y mantenemos una única implementación.
 
 ## 6. Automerge
 
-El workflow de actualización habilita `auto-merge: true`.
-
-`aur-maintainer` crea o actualiza la PR y solicita automerge con método squash. La validación de CI debe seguir siendo una barrera antes del merge.
+`aur-maintainer` crea o actualiza la PR y solicita automerge con método squash
+cuando `auto-merge` está habilitado. La validación de la Action debe seguir
+siendo una barrera antes del merge.
 
 ## 7. Publicación en AUR
 
 Solo `master` publica automáticamente.
 
-`Update AUR Package` delega directamente en `aur-maintainer@v1` con `aur-publish-only: true`.
+La publicación delega directamente en `aur-maintainer` con
+`aur-publish-only: true`.
 
-El Action:
+Secrets necesarios:
 
-- prepara un checkout temporal del repositorio AUR;
-- sincroniza `PKGBUILD`, `.SRCINFO` y los archivos necesarios;
-- comprueba si existen cambios;
-- crea el commit solo cuando hay cambios;
-- hace push a `master`.
-
-La clave SSH y los known hosts son las únicas credenciales específicas que necesita el workflow de publicación.
+- `RENOVATE_TOKEN`: token utilizado para crear o actualizar PRs.
+- `AUR_SSH_PRIVATE_KEY`: clave SSH cuya pública está registrada en AUR.
 
 ## 8. Principios de diseño
 
-- Una implementación por responsabilidad.
-- `aur-maintainer` es la fuente común de la lógica de actualización y publicación.
-- Los workflows de `aur-packages` deben ser finos.
-- No duplicar detección de paquetes en workflows.
-- No crear matrices de publicación innecesarias.
-- Los paquetes declaran su conector mediante configuración.
+- `aur-maintainer` es la fuente común de la lógica de mantenimiento.
+- `aur-packages` es declarativo.
+- No duplicar detección ni validación de paquetes.
+- Los paquetes declaran su connector mediante configuración.
+- Los custom connectors son la única lógica específica permitida.
 - Solo `master` publica en AUR.
-- La validación no se debe saltar para conseguir automerge.
-- Los workflows deben usar los permisos mínimos necesarios.
 
-El objetivo es poder añadir un paquete nuevo mediante configuración y archivos del propio paquete, sin crear infraestructura de CI específica para él.
+El objetivo es poder añadir un paquete nuevo mediante configuración y los
+archivos propios del paquete, sin crear infraestructura de CI específica.
