@@ -34,7 +34,7 @@ jobs:
           token: ${{ secrets.RENOVATE_TOKEN }}
 
       - name: Maintain AUR packages
-        uses: soker90/aur-maintainer@5726187ec1f224374135c2d40ad6fde2fbf2f6ec
+        uses: soker90/aur-maintainer@0ae190b7feb6e020867cb2897305bbfc8038ad7b
         with:
           github-token: ${{ secrets.RENOVATE_TOKEN }}
           base-branch: master
@@ -58,7 +58,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Publish packages to AUR
-        uses: soker90/aur-maintainer@5726187ec1f224374135c2d40ad6fde2fbf2f6ec
+        uses: soker90/aur-maintainer@0ae190b7feb6e020867cb2897305bbfc8038ad7b
         with:
           aur-publish-only: true
           aur-ssh-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
