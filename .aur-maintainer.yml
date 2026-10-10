@@ -1,8 +1,33 @@
 packages:
+  - path: betcon
+    connector: github-release
+    config:
+      repository: soker90/betcon
+    updates: {}
+
   - path: github-copilot-app-bin
     connector: github-release
     config:
       repository: github/app
+    updates: {}
+
+  - path: nodejs-npm-check
+    connector: github-release
+    config:
+      repository: dylang/npm-check
+    updates:
+      version: '_npmver=${version}'
+
+  - path: python-pyexcel-ezodf
+    connector: github-release
+    config:
+      repository: pyexcel/pyexcel-ezodf
+    updates: {}
+
+  - path: tarifas-luz-bin
+    connector: github-release
+    config:
+      repository: soker90/tarifas-luz
     updates: {}
 
   - path: toolhive-studio-bin
