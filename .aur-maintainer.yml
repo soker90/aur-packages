@@ -19,7 +19,7 @@ packages:
       version: '_npmver=${version}'
 
   - path: python-pyexcel-ezodf
-    connector: github-tag
+    connector: github-release
     config:
       repository: pyexcel/pyexcel-ezodf
     updates: {}
