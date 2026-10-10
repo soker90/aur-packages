@@ -8,6 +8,7 @@ Repositorio automatizado usando **aur-maintainer** y **GitHub Actions** para man
 |---------|------------------------------|-----|
 | **toolhive-studio-bin** | GitHub Releases + `aur-maintainer` | [AUR](https://aur.archlinux.org/packages/toolhive-studio-bin) |
 | **github-copilot-app-bin** | GitHub Releases + `aur-maintainer` | [AUR](https://aur.archlinux.org/packages/github-copilot-app-bin) |
+| **qt-sudo** | GitHub Releases + `aur-maintainer` | [AUR](https://aur.archlinux.org/packages/qt-sudo) |
 | **vega-cli-bin** | Conector personalizado + `aur-maintainer` | [AUR](https://aur.archlinux.org/packages/vega-cli-bin) |
 
 ## 🔄 Flujo de actualización
