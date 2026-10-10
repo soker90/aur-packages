@@ -12,11 +12,11 @@ packages:
     updates: {}
 
   - path: nodejs-npm-check
-    connector: npm
+    connector: github-release
     config:
-      package: npm-check
+      repository: dylang/npm-check
     updates:
-      source: '_npmver=${version}'
+      version: '_npmver=${version}'
 
   - path: python-pyexcel-ezodf
     connector: github-tag
