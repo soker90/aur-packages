@@ -24,6 +24,12 @@ packages:
       repository: pyexcel/pyexcel-ezodf
     updates: {}
 
+  - path: qt-sudo
+    connector: github-release
+    config:
+      repository: aarnt/qt-sudo
+    updates: {}
+
   - path: tarifas-luz-bin
     connector: github-release
     config:
