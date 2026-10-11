@@ -6,9 +6,13 @@ Repositorio automatizado usando **aur-maintainer** y **GitHub Actions** para man
 
 | Paquete | Detección de actualizaciones | AUR |
 |---------|------------------------------|-----|
-| **toolhive-studio-bin** | GitHub Releases + `aur-maintainer` | [AUR](https://aur.archlinux.org/packages/toolhive-studio-bin) |
-| **github-copilot-app-bin** | GitHub Releases + `aur-maintainer` | [AUR](https://aur.archlinux.org/packages/github-copilot-app-bin) |
-| **vega-cli-bin** | Conector personalizado + `aur-maintainer` | [AUR](https://aur.archlinux.org/packages/vega-cli-bin) |
+| **betcon** | GitHub Releases + `aur-maintainer` | [![AUR version](https://img.shields.io/aur/version/betcon)](https://aur.archlinux.org/packages/betcon) |
+| **github-copilot-app-bin** | GitHub Releases + `aur-maintainer` | [![AUR version](https://img.shields.io/aur/version/github-copilot-app-bin)](https://aur.archlinux.org/packages/github-copilot-app-bin) |
+| **nodejs-npm-check** | GitHub Releases + `aur-maintainer` | [![AUR version](https://img.shields.io/aur/version/nodejs-npm-check)](https://aur.archlinux.org/packages/nodejs-npm-check) |
+| **python-pyexcel-ezodf** | GitHub Releases + `aur-maintainer` | [![AUR version](https://img.shields.io/aur/version/python-pyexcel-ezodf)](https://aur.archlinux.org/packages/python-pyexcel-ezodf) |
+| **tarifas-luz-bin** | GitHub Releases + `aur-maintainer` | [![AUR version](https://img.shields.io/aur/version/tarifas-luz-bin)](https://aur.archlinux.org/packages/tarifas-luz-bin) |
+| **toolhive-studio-bin** | GitHub Releases + `aur-maintainer` | [![AUR version](https://img.shields.io/aur/version/toolhive-studio-bin)](https://aur.archlinux.org/packages/toolhive-studio-bin) |
+| **vega-cli-bin** | Conector personalizado + `aur-maintainer` | [![AUR version](https://img.shields.io/aur/version/vega-cli-bin)](https://aur.archlinux.org/packages/vega-cli-bin) |
 
 ## 🔄 Flujo de actualización
 
