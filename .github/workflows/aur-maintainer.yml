@@ -4,15 +4,6 @@ on:
   schedule:
     - cron: '17 */6 * * *'
   workflow_dispatch:
-    inputs:
-      mode:
-        description: Operation to run
-        required: true
-        type: choice
-        default: maintain
-        options:
-          - maintain
-          - publish
   pull_request:
     branches:
       - master
@@ -25,7 +16,7 @@ permissions:
 
 jobs:
   maintain:
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'maintain')
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -42,24 +33,30 @@ jobs:
           auto-merge: true
 
   publish:
-    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'publish')
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'update/')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout merged repository state
         uses: actions/checkout@v7
+        with:
+          ref: master
 
       - name: Resolve AUR known hosts
         id: known-hosts
+        shell: bash
         run: |
+          set -euo pipefail
           {
             echo 'hosts<<EOF'
             ssh-keyscan -H aur.archlinux.org
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: Publish packages to AUR
+      - name: Publish merged package to AUR
         uses: soker90/aur-maintainer@v1
         with:
+          update-branch: update
           aur-publish-only: true
+          aur-publish-branch: ${{ github.event.pull_request.head.ref }}
           aur-ssh-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           aur-known-hosts: ${{ steps.known-hosts.outputs.hosts }}
