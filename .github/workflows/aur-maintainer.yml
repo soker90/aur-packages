@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: '17 */6 * * *'
   workflow_dispatch:
+    inputs:
+      package:
+        description: Exact managed package directory name
+        required: true
+        type: string
+      version:
+        description: Target pkgver to prepare for review
+        required: true
+        type: string
   pull_request:
     branches:
       - master
@@ -25,9 +34,11 @@ jobs:
           token: ${{ secrets.RENOVATE_TOKEN }}
 
       - name: Maintain AUR packages
-        uses: soker90/aur-maintainer@v1
+        uses: soker90/aur-maintainer@4ce9974121460f0ecf3d3588475a34545261e7a9
         with:
           github-token: ${{ secrets.RENOVATE_TOKEN }}
+          manual-package: ${{ inputs.package }}
+          manual-version: ${{ inputs.version }}
           base-branch: master
           update-branch: update
           auto-merge: true
