@@ -1,4 +1,5 @@
 # Maintainer: Eduardo Parra <eduparra90@gmail.com>
+# AUR history recovery is handled by aur-maintainer; build downloads stay outside this package directory.
 pkgname=github-copilot-app-bin
 _pkgname=github-copilot-app
 pkgver=1.1.35
