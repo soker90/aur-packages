@@ -34,7 +34,7 @@ jobs:
           token: ${{ secrets.RENOVATE_TOKEN }}
 
       - name: Maintain AUR packages
-        uses: soker90/aur-maintainer@4ce9974121460f0ecf3d3588475a34545261e7a9
+        uses: soker90/aur-maintainer@9e48d6f260b3b0b3eec893e597c0fe6945ebdc61
         with:
           github-token: ${{ secrets.RENOVATE_TOKEN }}
           manual-package: ${{ inputs.package }}
@@ -68,6 +68,16 @@ jobs:
         with:
           update-branch: update
           aur-publish-only: true
+          aur-rewrite-history: true
           aur-publish-branch: ${{ github.event.pull_request.head.ref }}
           aur-ssh-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           aur-known-hosts: ${{ steps.known-hosts.outputs.hosts }}
+
+      - name: Preserve AUR history backups
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: aur-history-backups-${{ github.run_id }}
+          path: ${{ runner.temp }}/aur-maintainer-aur-backups/*.bundle
+          if-no-files-found: ignore
+          retention-days: 90
