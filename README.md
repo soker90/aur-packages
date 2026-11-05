@@ -33,7 +33,7 @@ Secrets necesarios:
 - `RENOVATE_TOKEN`: token utilizado por `aur-maintainer` para crear o actualizar PRs.
 - `AUR_SSH_PRIVATE_KEY`: clave SSH cuya pública está registrada en la cuenta de AUR.
 
-La publicación solo se produce desde `master`. `aur-maintainer` sincroniza `PKGBUILD`, `.SRCINFO` y los archivos adicionales necesarios con el repositorio AUR.
+La publicación solo se produce desde `master`. `aur-maintainer` sincroniza `PKGBUILD`, `.SRCINFO` y los archivos adicionales necesarios con el repositorio AUR. Si AUR rechaza blobs históricos superiores a 500.000 bytes, el workflow conserva primero un bundle del historial y ejecuta la reparación explícita; la copia queda disponible como artefacto durante 90 días.
 
 ## 🛠️ Añadir un paquete
 
