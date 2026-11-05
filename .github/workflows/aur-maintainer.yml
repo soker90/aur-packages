@@ -64,7 +64,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Publish merged package to AUR
-        uses: soker90/aur-maintainer@v1
+        uses: soker90/aur-maintainer@9e48d6f260b3b0b3eec893e597c0fe6945ebdc61
         with:
           update-branch: update
           aur-publish-only: true
