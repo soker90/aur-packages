@@ -34,7 +34,7 @@ jobs:
           token: ${{ secrets.RENOVATE_TOKEN }}
 
       - name: Maintain AUR packages
-        uses: soker90/aur-maintainer@9e48d6f260b3b0b3eec893e597c0fe6945ebdc61
+        uses: soker90/aur-maintainer@b80b95d1126a7422eb3da2dfd8c17fe419a0dd07
         with:
           github-token: ${{ secrets.RENOVATE_TOKEN }}
           manual-package: ${{ inputs.package }}
@@ -64,7 +64,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Publish merged package to AUR
-        uses: soker90/aur-maintainer@9e48d6f260b3b0b3eec893e597c0fe6945ebdc61
+        uses: soker90/aur-maintainer@b80b95d1126a7422eb3da2dfd8c17fe419a0dd07
         with:
           update-branch: update
           aur-publish-only: true
