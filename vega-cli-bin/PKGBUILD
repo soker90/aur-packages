@@ -1,4 +1,5 @@
 # Maintainer: Eduardo Parra Mazuecos <eduparra90@gmail.com>
+# AUR history recovery: aur-maintainer backs up and removes oversized legacy blobs before publishing.
 pkgname=vega-cli-bin
 _pkgname=vega
 pkgver=1.4.8
