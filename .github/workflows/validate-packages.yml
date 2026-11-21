@@ -69,10 +69,10 @@ jobs:
           for package in "${packages[@]}"; do
             echo "::group::Validating $package"
             cd "$GITHUB_WORKSPACE/$package"
-            makepkg --printsrcinfo > .SRCINFO.generated
+            chown -R builder:builder "$GITHUB_WORKSPACE/$package"
+            sudo -u builder makepkg --printsrcinfo > .SRCINFO.generated
             diff -u .SRCINFO .SRCINFO.generated
             rm .SRCINFO.generated
-            chown -R builder:builder "$GITHUB_WORKSPACE/$package"
             sudo -u builder makepkg --syncdeps --noconfirm --cleanbuild --force
             echo "::endgroup::"
           done
