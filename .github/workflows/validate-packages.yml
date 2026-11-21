@@ -1,6 +1,9 @@
 name: Validate AUR packages
 
 on:
+  push:
+    branches:
+      - ci/validate-pull-request-packages
   pull_request:
     branches:
       - master
@@ -14,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: aur-validation-${{ github.event.pull_request.number }}
+  group: aur-validation-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -37,9 +40,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin "${{ github.event.pull_request.base.ref }}"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git fetch origin "${{ github.event.pull_request.base.ref }}"
+            base="origin/${{ github.event.pull_request.base.ref }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+          fi
           mapfile -t packages < <(
-            git diff --name-only "origin/${{ github.event.pull_request.base.ref }}" "${{ github.event.pull_request.head.sha }}" |
+            git diff --name-only "$base" "$head" |
               awk -F/ 'NF > 1 && $2 == "PKGBUILD" { print $1 }' |
               sort -u
           )
