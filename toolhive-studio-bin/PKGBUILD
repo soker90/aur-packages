@@ -35,7 +35,7 @@ sha256sums=('a8bb1353bb049e9b11b0c2e961fb361f9883a2001ea270882e8894451097fdde')
 
 package() {
     # Extract the .deb (ar archive), then locate its data payload regardless
-    # of the compression format used by the upstream release.
+    # of the compression format used by the upstream release (or its suffix).
     cd "$srcdir"
     bsdtar -xf "$pkgname-$pkgver.deb"
     payload=$(find "$srcdir" -maxdepth 1 -type f -name 'data.tar*' -print -quit)
