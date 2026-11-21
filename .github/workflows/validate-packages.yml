@@ -1,0 +1,71 @@
+name: Validate AUR packages
+
+on:
+  pull_request:
+    branches:
+      - master
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aur-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install build tools
+        shell: bash
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --needed --noconfirm base-devel git sudo
+
+      - name: Identify changed packages
+        id: packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "${{ github.event.pull_request.base.ref }}"
+          mapfile -t packages < <(
+            git diff --name-only "origin/${{ github.event.pull_request.base.ref }}" "${{ github.event.pull_request.head.sha }}" |
+              awk -F/ 'NF > 1 && $2 == "PKGBUILD" { print $1 }' |
+              sort -u
+          )
+          if (( ${#packages[@]} == 0 )); then
+            echo "No package PKGBUILD changes detected."
+            echo "packages=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf 'packages=%s\n' "$(IFS=,; echo "${packages[*]}")" >> "$GITHUB_OUTPUT"
+
+      - name: Validate changed packages
+        if: steps.packages.outputs.packages != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          useradd --create-home builder
+          printf 'builder ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/builder
+          chmod 440 /etc/sudoers.d/builder
+          IFS=, read -r -a packages <<< "${{ steps.packages.outputs.packages }}"
+          for package in "${packages[@]}"; do
+            echo "::group::Validating $package"
+            cd "$GITHUB_WORKSPACE/$package"
+            makepkg --printsrcinfo > .SRCINFO.generated
+            diff -u .SRCINFO .SRCINFO.generated
+            rm .SRCINFO.generated
+            chown -R builder:builder "$GITHUB_WORKSPACE/$package"
+            sudo -u builder makepkg --syncdeps --noconfirm --cleanbuild --force
+            echo "::endgroup::"
+          done
