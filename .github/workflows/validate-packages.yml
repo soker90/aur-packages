@@ -1,9 +1,6 @@
 name: Validate AUR packages
 
 on:
-  push:
-    branches:
-      - ci/validate-pull-request-packages
   pull_request:
     branches:
       - master
@@ -17,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: aur-validation-${{ github.event.pull_request.number || github.ref }}
+  group: aur-validation-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -26,28 +23,27 @@ jobs:
     container:
       image: archlinux:latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
       - name: Install build tools
         shell: bash
         run: |
           pacman -Syu --noconfirm
           pacman -S --needed --noconfirm base-devel git sudo
 
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
       - name: Identify changed packages
         id: packages
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            git fetch origin "${{ github.event.pull_request.base.ref }}"
-            base="origin/${{ github.event.pull_request.base.ref }}"
-            head="${{ github.event.pull_request.head.sha }}"
-          else
-            base="${{ github.event.before }}"
-            head="${{ github.sha }}"
-          fi
+          git fetch origin "${{ github.event.pull_request.base.ref }}"
+          git fetch origin "refs/pull/${{ github.event.pull_request.number }}/head:refs/remotes/origin/pr-${{ github.event.pull_request.number }}"
+          base="origin/${{ github.event.pull_request.base.ref }}"
+          head="origin/pr-${{ github.event.pull_request.number }}"
           mapfile -t packages < <(
             git diff --name-only "$base" "$head" |
               awk -F/ 'NF > 1 && $2 == "PKGBUILD" { print $1 }' |
