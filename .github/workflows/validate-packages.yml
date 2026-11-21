@@ -40,6 +40,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git fetch origin "${{ github.event.pull_request.base.ref }}"
           git fetch origin "refs/pull/${{ github.event.pull_request.number }}/head:refs/remotes/origin/pr-${{ github.event.pull_request.number }}"
           base="origin/${{ github.event.pull_request.base.ref }}"
